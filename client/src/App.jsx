@@ -6,6 +6,8 @@ import Dashboard from "./pages/Dashboard";
 import Layout from "./components/layout/layout";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import Portfolio from "./pages/Portfolio";
+import Transactions from "./pages/Transactions";
 
 
 function App() {
@@ -31,6 +33,22 @@ function App() {
         <Route path="/profile" element={<Profile />} />
 
         <Route path="*" element={<NotFound />} />
+        <Route
+          path="/portfolio"
+          element={
+            <ProtectedRoute>
+              <Portfolio />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/transactions"
+          element={
+            <ProtectedRoute>
+              <Transactions />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );

@@ -9,11 +9,55 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  fullName  String
-  email     String   @unique
-  password  String
-  avatar    String?
+  id       String @id @default(uuid())
+
+  fullName String
+  email    String @unique
+  password String
+
+  balance Float @default(1000000)
+
+  portfolios   Portfolio[]
+  transactions Transaction[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model Portfolio {
+  id          String   @id @default(uuid())
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  symbol      String
+  companyName String
+  quantity    Int
+  buyPrice    Float
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, symbol])
+}
+
+model Transaction {
+  id        String   @id @default(uuid())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  symbol    String
+  type      TransactionType
+  quantity  Int
+  price     Float
+  total     Float
+
+  createdAt DateTime @default(now())
+}
+
+enum TransactionType {
+  BUY
+  SELL
+}
+
