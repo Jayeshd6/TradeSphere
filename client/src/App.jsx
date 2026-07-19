@@ -8,6 +8,7 @@ import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import Portfolio from "./pages/Portfolio";
 import Transactions from "./pages/Transactions";
+import Market from "./pages/Market";
 
 
 function App() {
@@ -31,9 +32,7 @@ function App() {
         <Route path="/layout" element={<Layout />} />
 
         <Route path="/profile" element={<Profile />} />
-
-        <Route path="*" element={<NotFound />} />
-        <Route
+         <Route
           path="/portfolio"
           element={
             <ProtectedRoute>
@@ -49,6 +48,17 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/market"
+          element={
+            <ProtectedRoute>
+              <Market />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route path="*" element={<NotFound />} />
+       
       </Routes>
     </BrowserRouter>
   );

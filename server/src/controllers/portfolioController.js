@@ -1,4 +1,6 @@
 const prisma = require("../utils/prisma");
+const { getQuote } = require("../services/stockService");
+
 
 const addPortfolio = async (req, res) => {
   try {
@@ -62,7 +64,75 @@ const getPortfolios = async (req, res) => {
     });
   }
 };
+const getLivePortfolio = async (req, res) => {
+    try {
+
+        // Fetch user's portfolio
+        const portfolios = await prisma.portfolio.findMany({
+            where: {
+                userId: req.user.id,
+            },
+        });
+
+        const livePortfolio = await Promise.all(
+
+            portfolios.map(async (portfolio) => {
+
+                const quote = await getQuote(portfolio.symbol);
+
+                const currentPrice = quote.c;
+
+                const invested =
+                    portfolio.quantity * portfolio.buyPrice;
+
+                const currentValue =
+                    portfolio.quantity * currentPrice;
+
+                const profit =
+                    currentValue - invested;
+
+                const profitPercent =
+                    invested === 0
+                        ? 0
+                        : (profit / invested) * 100;
+
+                return {
+                    ...portfolio,
+
+                    currentPrice,
+
+                    invested,
+
+                    currentValue,
+
+                    profit,
+
+                    profitPercent,
+                };
+            })
+
+        );
+
+        res.status(200).json({
+            success: true,
+            portfolio: livePortfolio,
+        });
+
+    } catch (error) {
+
+        console.error("Live Portfolio Error:", error);
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch live portfolio",
+        });
+
+    }
+};
+
+
 module.exports = {
   addPortfolio,
   getPortfolios,
+  getLivePortfolio
 };

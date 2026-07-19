@@ -4,6 +4,9 @@ import StatCard from "../components/dashboard/StatCard";
 import PortfolioChart from "../components/dashboard/PortfolioChart";
 import AssetAllocation from "../components/dashboard/AssetAllocation";
 import RecentTransactions from "../components/dashboard/RecentTransactions";
+import WalletCard from "../components/dashboard/WalletCard";
+import api from "../services/api";
+import { useEffect, useState } from "react";
 
 import {
   FaChartLine,
@@ -13,6 +16,18 @@ import {
 } from "react-icons/fa6";
 
 function Dashboard() {
+  const [balance, setBalance] = useState(0);
+  const fetchBalance = async () => {
+    try {
+        const response = await api.get("/transactions/balance");
+        setBalance(response.data.balance);
+    } catch (error) {
+        toast.error("Failed to fetch balance");
+    }
+};
+useEffect(() => {
+    fetchBalance();
+}, []);
   return (
     <Layout>
 
@@ -21,6 +36,7 @@ function Dashboard() {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+        <WalletCard balance={balance} />
 
         <StatCard
           title="Portfolio Value"

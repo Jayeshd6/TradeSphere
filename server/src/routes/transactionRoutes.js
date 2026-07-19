@@ -5,7 +5,8 @@ const protect = require("../middleware/authMiddleware");
 const {
   getTransactions,
   buyStock,
-  sellStock
+  sellStock,
+  getBalance,
 } = require("../controllers/transactionController");
 ;
 

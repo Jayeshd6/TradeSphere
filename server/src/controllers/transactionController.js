@@ -1,4 +1,5 @@
 const prisma = require("../utils/prisma");
+const { getQuote } = require("../services/stockService");
 
 const getTransactions = async (req, res) => {
   try {
@@ -53,18 +54,25 @@ const buyStock = async (req, res) => {
     // 2. Calculate total cost
     const total = stockQuantity * stockPrice;
 
-    // 3. Get user's current balance
-    const user = await prisma.user.findUnique({
+    // 3. Get user's current wallet
+    let wallet = await prisma.wallet.findUnique({
       where: {
-        id: req.user.id,
-      },
-      select: {
-        balance: true,
+        userId: req.user.id,
       },
     });
 
+    // If wallet doesn't exist, create it (backwards compatibility for legacy users)
+    if (!wallet) {
+      wallet = await prisma.wallet.create({
+        data: {
+          userId: req.user.id,
+          balance: 1000000,
+        },
+      });
+    }
+
     // 4. Check whether user has enough money
-    if (user.balance < total) {
+    if (wallet.balance < total) {
       return res.status(400).json({
         success: false,
         message: "Insufficient balance",
@@ -149,25 +157,22 @@ const buyStock = async (req, res) => {
           });
 
         // 9. Deduct money from wallet
-        const updatedUser =
-          await tx.user.update({
+        const updatedWallet =
+          await tx.wallet.update({
             where: {
-              id: req.user.id,
+              userId: req.user.id,
             },
             data: {
               balance: {
                 decrement: total,
               },
             },
-            select: {
-              balance: true,
-            },
           });
 
         return {
           portfolio,
           transaction,
-          balance: updatedUser.balance,
+          balance: updatedWallet.balance,
         };
       }
     );
@@ -195,18 +200,25 @@ const buyStock = async (req, res) => {
 
 const sellStock = async (req, res) => {
   try {
-    const {
-      symbol,
-      quantity,
-      price,
-    } = req.body;
+    const { symbol, quantity } = req.body;
 
-    if (!symbol || !quantity || !price) {
+    if (
+      !symbol ||
+      !quantity ||
+      Number(quantity) <= 0
+    ) {
       return res.status(400).json({
         success: false,
-        message: "All fields are required",
+        message: "Valid symbol and quantity are required",
       });
     }
+    const quote = await getQuote(symbol.toUpperCase());
+    const currentPrice = quote.c;
+
+    if (!currentPrice || currentPrice <= 0) {
+      throw new Error("Unable to fetch live stock price");
+    }
+
 
     const result = await prisma.$transaction(async (tx) => {
 
@@ -267,11 +279,22 @@ const sellStock = async (req, res) => {
             symbol: symbol.toUpperCase(),
             type: "SELL",
             quantity: Number(quantity),
-            price: Number(price),
-            total: Number(quantity) * Number(price),
+            price: currentPrice,
+            total: Number(quantity) * currentPrice,
           },
         });
-
+      const sellAmount =
+        Number(quantity) * currentPrice;
+      await tx.wallet.update({
+        where: {
+          userId: req.user.id,
+        },
+        data: {
+          balance: {
+            increment: sellAmount,
+          },
+        },
+      });
       return {
         updatedPortfolio,
         transaction,
@@ -296,43 +319,24 @@ const sellStock = async (req, res) => {
 
 const getBalance = async (req, res) => {
   try {
-    const user = await prisma.user.findUnique({
+    let wallet = await prisma.wallet.findUnique({
       where: {
-        id: req.user.id,
-      },
-      select: {
-        balance: true,
+        userId: req.user.id,
       },
     });
+
+    if (!wallet) {
+      wallet = await prisma.wallet.create({
+        data: {
+          userId: req.user.id,
+          balance: 1000000,
+        },
+      });
+    }
 
     return res.status(200).json({
       success: true,
-      balance: user.balance,
-    });
-
-  } catch (error) {
-    console.error("Get Balance Error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch balance",
-    });
-  }
-};
-const getBalance = async (req, res) => {
-  try {
-    const user = await prisma.user.findUnique({
-      where: {
-        id: req.user.id,
-      },
-      select: {
-        balance: true,
-      },
-    });
-
-    return res.status(200).json({
-      success: true,
-      balance: user.balance,
+      balance: wallet.balance,
     });
 
   } catch (error) {
@@ -348,5 +352,5 @@ module.exports = {
   getTransactions,
   buyStock,
   sellStock,
-   getBalance,
+  getBalance,
 };

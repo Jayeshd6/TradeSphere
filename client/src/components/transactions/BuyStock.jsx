@@ -1,164 +1,243 @@
-import { useForm } from "react-hook-form";
+import { useState } from "react";
 import toast from "react-hot-toast";
-
 import api from "../../services/api";
 
-function BuyStock({ onStockBought }) {
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm();
+function BuyStock({ onSuccess }) {
+  const [search, setSearch] = useState("");
+  const [results, setResults] = useState([]);
+  const [selectedStock, setSelectedStock] = useState(null);
 
-  const onSubmit = async (data) => {
+  const [quantity, setQuantity] = useState("");
+
+  const [loadingSearch, setLoadingSearch] = useState(false);
+  const [buyLoading, setBuyLoading] = useState(false);
+
+  // Search Stocks
+  const searchStocks = async (query) => {
+    setSearch(query);
+
+    if (!query.trim()) {
+      setResults([]);
+      return;
+    }
+
     try {
-      const response = await api.post("/transactions/buy", {
-        symbol: data.symbol.toUpperCase(),
-        companyName: data.companyName,
-        quantity: Number(data.quantity),
-        price: Number(data.price),
-      });
+      setLoadingSearch(true);
 
-      toast.success(response.data.message);
+      const response = await api.get(
+        `/stocks/search?q=${query}`
+      );
 
-      reset();
-
-      // Refresh portfolio and transactions
-      if (onStockBought) {
-        onStockBought();
-      }
+      setResults(response.data.stocks);
 
     } catch (error) {
-      console.error("Buy Stock Error:", error);
+      console.error(error);
+
+      toast.error("Failed to search stocks");
+    } finally {
+      setLoadingSearch(false);
+    }
+  };
+
+  // Select Stock
+  const selectStock = async (stock) => {
+    try {
+      const response = await api.get(
+        `/stocks/quote/${stock.symbol}`
+      );
+
+      setSelectedStock({
+        symbol: stock.symbol,
+        companyName: stock.description,
+        price: response.data.quote.c,
+      });
+
+      setSearch(stock.symbol);
+      setResults([]);
+
+    } catch (error) {
+      console.error(error);
+
+      toast.error("Failed to fetch live price");
+    }
+  };
+
+  // Buy Stock
+  const handleBuy = async (e) => {
+    e.preventDefault();
+
+    if (!selectedStock) {
+      return toast.error("Please select a stock");
+    }
+
+    if (!quantity || Number(quantity) <= 0) {
+      return toast.error("Enter a valid quantity");
+    }
+
+    try {
+      setBuyLoading(true);
+
+      await api.post("/transactions/buy", {
+        symbol: selectedStock.symbol,
+        companyName: selectedStock.companyName,
+        quantity: Number(quantity),
+        price: selectedStock.price,
+      });
+
+      toast.success("Stock purchased successfully");
+
+      // Refresh Portfolio
+      if (onSuccess) {
+        onSuccess();
+      }
+
+      // Reset Form
+      setSearch("");
+      setSelectedStock(null);
+      setQuantity("");
+      setResults([]);
+
+    } catch (error) {
+      console.error(error);
 
       toast.error(
         error.response?.data?.message ||
-        "Failed to buy stock"
+          "Failed to buy stock"
       );
+    } finally {
+      setBuyLoading(false);
     }
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
+    <div className="bg-white rounded-xl shadow-sm p-6">
 
-      <h2 className="text-xl font-semibold text-slate-800 mb-6">
+      <h2 className="text-xl font-bold mb-6">
         Buy Stock
       </h2>
 
       <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="grid grid-cols-1 md:grid-cols-2 gap-5"
+        onSubmit={handleBuy}
+        className="space-y-5"
       >
 
-        {/* Stock Symbol */}
+        {/* Search */}
         <div>
-          <label className="block text-sm font-medium text-slate-600 mb-2">
-            Stock Symbol
+
+          <label className="block text-sm font-medium mb-2">
+            Search Stock
           </label>
 
           <input
             type="text"
-            placeholder="Example: TCS"
-            {...register("symbol", {
-              required: "Stock symbol is required",
-            })}
-            className="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-green-500"
+            placeholder="Search by Symbol..."
+            value={search}
+            onChange={(e) =>
+              searchStocks(e.target.value)
+            }
+            className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500"
           />
 
-          {errors.symbol && (
-            <p className="text-red-500 text-sm mt-1">
-              {errors.symbol.message}
+          {loadingSearch && (
+            <p className="text-sm text-slate-500 mt-2">
+              Searching...
             </p>
           )}
-        </div>
 
-        {/* Company Name */}
-        <div>
-          <label className="block text-sm font-medium text-slate-600 mb-2">
-            Company Name
-          </label>
+          {results.length > 0 && (
+            <div className="border rounded-lg mt-2 max-h-60 overflow-y-auto">
 
-          <input
-            type="text"
-            placeholder="Example: Tata Consultancy Services"
-            {...register("companyName", {
-              required: "Company name is required",
-            })}
-            className="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-green-500"
-          />
+              {results.map((stock) => (
 
-          {errors.companyName && (
-            <p className="text-red-500 text-sm mt-1">
-              {errors.companyName.message}
-            </p>
+                <div
+                  key={stock.symbol}
+                  onClick={() =>
+                    selectStock(stock)
+                  }
+                  className="p-3 hover:bg-slate-100 cursor-pointer border-b"
+                >
+                  <p className="font-semibold">
+                    {stock.symbol}
+                  </p>
+
+                  <p className="text-sm text-slate-500">
+                    {stock.description}
+                  </p>
+
+                </div>
+
+              ))}
+
+            </div>
           )}
+
         </div>
+
+        {/* Selected Stock */}
+        {selectedStock && (
+
+          <div className="bg-slate-50 rounded-lg p-4">
+
+            <p>
+              <strong>Company:</strong>{" "}
+              {selectedStock.companyName}
+            </p>
+
+            <p className="mt-2">
+              <strong>Current Price:</strong>{" "}
+              ₹{selectedStock.price}
+            </p>
+
+          </div>
+
+        )}
 
         {/* Quantity */}
         <div>
-          <label className="block text-sm font-medium text-slate-600 mb-2">
+
+          <label className="block text-sm font-medium mb-2">
             Quantity
           </label>
 
           <input
             type="number"
-            placeholder="Example: 10"
-            {...register("quantity", {
-              required: "Quantity is required",
-              min: {
-                value: 1,
-                message: "Quantity must be at least 1",
-              },
-            })}
-            className="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-green-500"
+            min="1"
+            value={quantity}
+            onChange={(e) =>
+              setQuantity(e.target.value)
+            }
+            className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+            placeholder="Enter quantity"
           />
 
-          {errors.quantity && (
-            <p className="text-red-500 text-sm mt-1">
-              {errors.quantity.message}
+        </div>
+
+        {/* Total Cost */}
+        {selectedStock && quantity && (
+          <div className="bg-green-50 rounded-lg p-4">
+
+            <p className="font-semibold text-green-700">
+              Total Cost
             </p>
-          )}
-        </div>
 
-        {/* Price */}
-        <div>
-          <label className="block text-sm font-medium text-slate-600 mb-2">
-            Price Per Share
-          </label>
+            <h3 className="text-2xl font-bold text-green-600">
+              ₹
+              {(
+                selectedStock.price *
+                Number(quantity)
+              ).toLocaleString("en-IN")}
+            </h3>
 
-          <input
-            type="number"
-            placeholder="Example: 3450"
-            {...register("price", {
-              required: "Price is required",
-              min: {
-                value: 0.01,
-                message: "Price must be greater than 0",
-              },
-            })}
-            className="w-full border border-slate-300 rounded-lg px-4 py-3 outline-none focus:border-green-500"
-          />
+          </div>
+        )}
 
-          {errors.price && (
-            <p className="text-red-500 text-sm mt-1">
-              {errors.price.message}
-            </p>
-          )}
-        </div>
-
-        {/* Buy Button */}
-        <div className="md:col-span-2">
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="bg-green-500 hover:bg-green-600 text-white font-semibold px-6 py-3 rounded-lg disabled:opacity-50"
-          >
-            {isSubmitting ? "Buying..." : "Buy Stock"}
-          </button>
-
-        </div>
+        <button
+          type="submit"
+          disabled={buyLoading}
+          className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition"
+        >
+          {buyLoading ? "Buying..." : "Buy Stock"}
+        </button>
 
       </form>
 

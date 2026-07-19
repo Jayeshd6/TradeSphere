@@ -48,6 +48,9 @@ const registerUser = async (req, res) => {
         fullName,
         email,
         password: hashedPassword,
+        wallet: {
+          create: {},
+        },
       },
     });
 

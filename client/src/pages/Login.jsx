@@ -30,7 +30,7 @@ function Login() {
             navigate("/dashboard");
     
         } catch (error) {
-            console.log("Error:", error.response.data);
+            console.log("Error:", error.response?.data || error.message);
 
             toast.error(
                 error.response?.data?.message || "Something went wrong"

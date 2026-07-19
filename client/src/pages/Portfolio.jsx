@@ -2,19 +2,25 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
 import Layout from "../components/layout/Layout";
-import api from "../services/api";
 import BuyStock from "../components/transactions/BuyStock";
-import SellStock from "../components/transactions/SellStock";
+import SellButton from "../components/portfolio/SellButton";
+import PortfolioPieChart from "../components/portfolio/PortfolioPieChart";
+import PortfolioPerformanceChart from "../components/portfolio/PortfolioPerformanceChart";
+import api from "../services/api";
+
 
 function Portfolio() {
     const [portfolios, setPortfolios] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    const fetchPortfolios = async () => {
+    const fetchPortfolio = async () => {
         try {
-            const response = await api.get("/portfolio");
+            setLoading(true);
 
-            setPortfolios(response.data.portfolios);
+            const response = await api.get("/portfolio/live");
+
+            setPortfolios(response.data.portfolio);
+
         } catch (error) {
             toast.error(
                 error.response?.data?.message ||
@@ -26,93 +32,134 @@ function Portfolio() {
     };
 
     useEffect(() => {
-        fetchPortfolios();
+        fetchPortfolio();
     }, []);
 
+    // Summary Cards
     const totalInvested = portfolios.reduce(
-        (total, portfolio) =>
-            total + portfolio.quantity * portfolio.buyPrice,
+        (total, stock) => total + stock.invested,
         0
     );
 
-    const totalHoldings = portfolios.length;
+    const portfolioValue = portfolios.reduce(
+        (total, stock) => total + stock.currentValue,
+        0
+    );
+
+    const totalProfit = portfolios.reduce(
+        (total, stock) => total + stock.profit,
+        0
+    );
+
+    const totalProfitPercent =
+        totalInvested === 0
+            ? 0
+            : (totalProfit / totalInvested) * 100;
 
     return (
         <Layout>
 
-            {/* Page Header */}
+            {/* Header */}
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-slate-800">
                     My Portfolio
                 </h1>
 
                 <p className="text-slate-500 mt-2">
-                    Track your investments and portfolio performance
+                    Track your investments in real time
                 </p>
             </div>
 
-
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
 
-                {/* Total Invested */}
                 <div className="bg-white rounded-xl shadow-sm p-6">
-                    <p className="text-sm text-slate-500">
+                    <p className="text-slate-500 text-sm">
                         Total Invested
                     </p>
 
-                    <h2 className="text-2xl font-bold text-slate-800 mt-2">
+                    <h2 className="text-2xl font-bold mt-2">
                         ₹{totalInvested.toLocaleString("en-IN")}
                     </h2>
                 </div>
 
-
-                {/* Total Holdings */}
                 <div className="bg-white rounded-xl shadow-sm p-6">
-                    <p className="text-sm text-slate-500">
-                        Total Holdings
+                    <p className="text-slate-500 text-sm">
+                        Portfolio Value
                     </p>
 
-                    <h2 className="text-2xl font-bold text-slate-800 mt-2">
-                        {totalHoldings}
+                    <h2 className="text-2xl font-bold mt-2 text-blue-600">
+                        ₹{portfolioValue.toLocaleString("en-IN")}
                     </h2>
                 </div>
 
-
-                {/* Portfolio Status */}
                 <div className="bg-white rounded-xl shadow-sm p-6">
-                    <p className="text-sm text-slate-500">
-                        Portfolio Status
+
+                    <p className="text-slate-500 text-sm">
+                        Overall Profit
                     </p>
 
-                    <h2 className="text-2xl font-bold text-green-500 mt-2">
-                        Active
+                    <h2
+                        className={`text-2xl font-bold mt-2 ${totalProfit >= 0
+                            ? "text-green-600"
+                            : "text-red-600"
+                            }`}
+                    >
+                        ₹{totalProfit.toLocaleString("en-IN")}
+
+                        <span className="text-base ml-2">
+                            ({totalProfitPercent.toFixed(2)}%)
+                        </span>
+
                     </h2>
+
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm p-6">
+
+                    <p className="text-slate-500 text-sm">
+                        Holdings
+                    </p>
+
+                    <h2 className="text-2xl font-bold mt-2">
+                        {portfolios.length}
+                    </h2>
+
                 </div>
 
             </div>
+            {/* Portfolio Charts */}
+            {portfolios.length > 0 && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <PortfolioPieChart portfolios={portfolios} />
+                    <PortfolioPerformanceChart portfolios={portfolios} />
+                </div>
+            )}
 
-
-            {/* Buy Stock Form */}
-            <BuyStock
-                onStockBought={fetchPortfolios}
-            />
-
-            <SellStock
-                portfolios={portfolios}
-                onStockSold={fetchPortfolios}
-            />
+            {/* Buy Stock */}
+            <div className="mb-8">
+                <BuyStock onSuccess={fetchPortfolio} />
+            </div>
 
             {/* Portfolio List */}
+
             {loading ? (
 
                 <p>Loading portfolio...</p>
 
             ) : portfolios.length === 0 ? (
 
-                <p className="text-slate-500">
-                    No investments found.
-                </p>
+                <div className="bg-white rounded-xl shadow-sm p-10 text-center">
+
+                    <h2 className="text-xl font-semibold text-slate-700">
+                        No Investments Found
+                    </h2>
+
+                    <p className="text-slate-500 mt-2">
+                        Buy your first stock to start building your portfolio.
+                    </p>
+
+                </div>
 
             ) : (
 
@@ -125,42 +172,88 @@ function Portfolio() {
                             className="bg-white rounded-xl shadow-sm p-6"
                         >
 
-                            <h2 className="text-xl font-bold text-slate-800">
+                            <h2 className="text-2xl font-bold text-slate-800">
                                 {portfolio.symbol}
                             </h2>
 
-                            <p className="text-sm text-slate-500">
+                            <p className="text-slate-500 mb-5">
                                 {portfolio.companyName}
                             </p>
 
-                            <div className="mt-4 space-y-2">
+                            <div className="space-y-3">
 
-                                <p className="text-slate-600">
-                                    Quantity:{" "}
+                                <div className="flex justify-between">
+                                    <span>Quantity</span>
+
                                     <span className="font-semibold">
                                         {portfolio.quantity}
                                     </span>
-                                </p>
+                                </div>
 
-                                <p className="text-slate-600">
-                                    Average Buy Price:{" "}
-                                    <span className="font-semibold">
+                                <div className="flex justify-between">
+                                    <span>Buy Price</span>
+
+                                    <span>
                                         ₹{portfolio.buyPrice}
                                     </span>
-                                </p>
+                                </div>
 
-                                <p className="text-slate-600">
-                                    Invested Value:{" "}
-                                    <span className="font-semibold">
-                                        ₹
-                                        {(
-                                            portfolio.quantity *
-                                            portfolio.buyPrice
-                                        ).toLocaleString("en-IN")}
+                                <div className="flex justify-between">
+                                    <span>Current Price</span>
+
+                                    <span className="font-semibold text-blue-600">
+                                        ₹{portfolio.currentPrice.toFixed(2)}
                                     </span>
-                                </p>
+                                </div>
+
+                                <hr />
+
+                                <div className="flex justify-between">
+                                    <span>Invested</span>
+
+                                    <span>
+                                        ₹{portfolio.invested.toLocaleString("en-IN")}
+                                    </span>
+                                </div>
+
+                                <div className="flex justify-between">
+                                    <span>Current Value</span>
+
+                                    <span className="font-semibold">
+                                        ₹{portfolio.currentValue.toLocaleString("en-IN")}
+                                    </span>
+                                </div>
+
+                                <hr />
+
+                                <div className="flex justify-between">
+
+                                    <span className="font-semibold">
+                                        Profit / Loss
+                                    </span>
+
+                                    <span
+                                        className={`font-bold ${portfolio.profit >= 0
+                                            ? "text-green-600"
+                                            : "text-red-600"
+                                            }`}
+                                    >
+                                        ₹{portfolio.profit.toFixed(2)}
+
+                                        <br />
+
+                                        ({portfolio.profitPercent.toFixed(2)}%)
+
+                                    </span>
+
+                                </div>
 
                             </div>
+
+                            <SellButton
+                                portfolio={portfolio}
+                                onSuccess={fetchPortfolio}
+                            />
 
                         </div>
 

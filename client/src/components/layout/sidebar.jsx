@@ -7,6 +7,7 @@ import {
   FaCog,
   FaSignOutAlt,
   FaChartLine,
+  FaStore,
 } from "react-icons/fa";
 
 import useAuth from "../../hooks/useAuth";
@@ -24,6 +25,11 @@ function Sidebar() {
       name: "Portfolio",
       icon: <FaChartPie />,
       path: "/portfolio",
+    },
+    {
+      name: "Market",
+      icon: <FaStore />,
+      path: "/market",
     },
     {
       name: "Expenses",
