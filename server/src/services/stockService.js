@@ -1,19 +1,16 @@
 const axios = require("axios");
 
-const API_KEY = process.env.FINNHUB_API_KEY;
+const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY;
 const CONVERSION_RATE = 120; // Scaling factor to convert USD stock prices to INR values
 
 const finnhub = axios.create({
   baseURL: "https://finnhub.io/api/v1",
 });
 
-const searchStocks = async (query) => {
-  const response = await finnhub.get("/search", {
-    params: {
-      q: query,
-      token: API_KEY,
-    },
-  });
+const searchSymbol = async (query) => {
+  const response = await axios.get(
+    `https://finnhub.io/api/v1/search?q=${query}&token=${FINNHUB_API_KEY}`
+  );
 
   return response.data.result;
 };
@@ -22,7 +19,7 @@ const getQuote = async (symbol) => {
   const response = await finnhub.get("/quote", {
     params: {
       symbol,
-      token: API_KEY,
+      token: FINNHUB_API_KEY,
     },
   });
 
@@ -43,7 +40,7 @@ const getCompanyProfile = async (symbol) => {
   const response = await finnhub.get("/stock/profile2", {
     params: {
       symbol,
-      token: API_KEY,
+      token: FINNHUB_API_KEY,
     },
   });
 
@@ -55,7 +52,7 @@ const getBasicFinancials = async (symbol) => {
     params: {
       symbol,
       metric: "all",
-      token: API_KEY,
+      token: FINNHUB_API_KEY,
     },
   });
 
@@ -63,8 +60,8 @@ const getBasicFinancials = async (symbol) => {
 };
 
 module.exports = {
-  searchStocks,
   getQuote,
+  searchSymbol,
   getCompanyProfile,
   getBasicFinancials,
-};
+};

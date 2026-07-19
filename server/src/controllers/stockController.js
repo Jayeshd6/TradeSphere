@@ -1,6 +1,6 @@
 const {
-  searchStocks,
-  getQuote,
+  searchSymbol,
+  getQuote: getLiveQuote,
   getCompanyProfile,
   getBasicFinancials,
 } = require("../services/stockService");
@@ -66,18 +66,18 @@ const FALLBACK_STOCKS = {
 };
 
 // Search Stocks
-const searchStock = async (req, res) => {
+const searchStocks = async (req, res) => {
   try {
-    const { q } = req.query;
+    const query = req.query.q;
 
-    if (!q) {
+    if (!query) {
       return res.status(400).json({
         success: false,
         message: "Search query is required",
       });
     }
 
-    const stocks = await searchStocks(q);
+    const stocks = await searchSymbol(query);
 
     return res.status(200).json({
       success: true,
@@ -95,11 +95,11 @@ const searchStock = async (req, res) => {
 };
 
 // Get Live Stock Price
-const getStockQuote = async (req, res) => {
+const getQuote = async (req, res) => {
   try {
     const { symbol } = req.params;
 
-    const quote = await getQuote(symbol);
+    const quote = await getLiveQuote(symbol);
 
     return res.status(200).json({
       success: true,
@@ -125,7 +125,7 @@ const getStockDetails = async (req, res) => {
     // 1. Get live stock quote
     let quote = null;
     try {
-      quote = await getQuote(cleanSymbol);
+      quote = await getLiveQuote(cleanSymbol);
     } catch (err) {
       console.warn(`Quote API failed for ${cleanSymbol}:`, err.message);
     }
@@ -214,9 +214,7 @@ const getStockDetails = async (req, res) => {
 };
 
 module.exports = {
-  searchStock,
-  getStockQuote,
+  searchStocks,
+  getQuote,
   getStockDetails,
-  searchStocks: searchStock,
-  getQuote: getStockQuote,
 };
