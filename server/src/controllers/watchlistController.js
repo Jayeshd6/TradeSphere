@@ -1,7 +1,6 @@
 const prisma = require("../utils/prisma");
 const { getQuote } = require("../services/stockService");
 
-// Add stock to watchlist
 const addToWatchlist = async (req, res) => {
   try {
     const { symbol, companyName } = req.body;
@@ -13,14 +12,11 @@ const addToWatchlist = async (req, res) => {
       });
     }
 
-    const cleanSymbol = symbol.toUpperCase();
-
-    // Check if already in watchlist
     const existing = await prisma.watchlist.findUnique({
       where: {
         userId_symbol: {
           userId: req.user.id,
-          symbol: cleanSymbol,
+          symbol: symbol.toUpperCase(),
         },
       },
     });
@@ -28,72 +24,35 @@ const addToWatchlist = async (req, res) => {
     if (existing) {
       return res.status(400).json({
         success: false,
-        message: "Stock is already in your watchlist",
+        message: "Stock already in watchlist",
       });
     }
 
-    const item = await prisma.watchlist.create({
+    const stock = await prisma.watchlist.create({
       data: {
         userId: req.user.id,
-        symbol: cleanSymbol,
+        symbol: symbol.toUpperCase(),
         companyName,
       },
     });
 
     return res.status(201).json({
       success: true,
-      message: "Added to watchlist successfully",
-      watchlist: item,
+      message: "Added to watchlist",
+      stock,
     });
   } catch (error) {
-    console.error("Add To Watchlist Error:", error);
+    console.error(error);
     return res.status(500).json({
       success: false,
-      message: "Failed to add stock to watchlist",
+      message: error.message,
     });
   }
 };
 
-// Remove stock from watchlist
-const removeFromWatchlist = async (req, res) => {
-  try {
-    const { symbol } = req.params;
-
-    if (!symbol) {
-      return res.status(400).json({
-        success: false,
-        message: "Symbol is required",
-      });
-    }
-
-    const cleanSymbol = symbol.toUpperCase();
-
-    await prisma.watchlist.delete({
-      where: {
-        userId_symbol: {
-          userId: req.user.id,
-          symbol: cleanSymbol,
-        },
-      },
-    });
-
-    return res.status(200).json({
-      success: true,
-      message: "Removed from watchlist successfully",
-    });
-  } catch (error) {
-    console.error("Remove From Watchlist Error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to remove stock from watchlist",
-    });
-  }
-};
-
-// Get all watchlisted stocks with live prices
 const getWatchlist = async (req, res) => {
   try {
-    const list = await prisma.watchlist.findMany({
+    const watchlist = await prisma.watchlist.findMany({
       where: {
         userId: req.user.id,
       },
@@ -102,47 +61,72 @@ const getWatchlist = async (req, res) => {
       },
     });
 
-    // Stitch live quotes for each stock
-    const watchlistWithQuotes = await Promise.all(
-      list.map(async (item) => {
-        let price = 0;
+    const liveWatchlist = await Promise.all(
+      watchlist.map(async (stock) => {
+        let currentPrice = 0;
+        let change = 0;
         let changePercent = 0;
-
         try {
-          const quote = await getQuote(item.symbol);
+          const quote = await getQuote(stock.symbol);
           if (quote) {
-            price = quote.c || 0;
+            currentPrice = quote.c || 0;
+            change = quote.d || 0;
             changePercent = quote.dp || 0;
           }
         } catch (err) {
-          console.warn(`Failed to fetch quote for watchlist item ${item.symbol}:`, err.message);
+          console.warn(`Failed to fetch quote for watchlist item ${stock.symbol}:`, err.message);
         }
 
         return {
-          id: item.id,
-          symbol: item.symbol,
-          companyName: item.companyName,
-          price,
+          ...stock,
+          currentPrice,
+          change,
           changePercent,
         };
       })
     );
 
-    return res.status(200).json({
+    return res.json({
       success: true,
-      watchlist: watchlistWithQuotes,
+      watchlist: liveWatchlist,
     });
   } catch (error) {
-    console.error("Get Watchlist Error:", error);
+    console.error(error);
     return res.status(500).json({
       success: false,
-      message: "Failed to fetch watchlist",
+      message: error.message,
+    });
+  }
+};
+
+const removeFromWatchlist = async (req, res) => {
+  try {
+    const { symbol } = req.params;
+
+    await prisma.watchlist.delete({
+      where: {
+        userId_symbol: {
+          userId: req.user.id,
+          symbol: symbol.toUpperCase(),
+        },
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Removed from watchlist",
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
     });
   }
 };
 
 module.exports = {
+  getWatchlist,
   addToWatchlist,
   removeFromWatchlist,
-  getWatchlist,
 };

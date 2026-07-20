@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
 import toast from "react-hot-toast";
-import Layout from "../components/layout/Layout";
+import Layout from "../components/layout/layout";
 import SearchStock from "../components/market/SearchStock";
 import StockCard from "../components/market/StockCard";
 import TradingChart from "../components/market/TradingChart";
 import MarketBuyPanel from "../components/market/MarketBuyPanel";
 import api from "../services/api";
+import { addToWatchlist } from "../services/watchlistService";
 
 function Market() {
   const [selectedStock, setSelectedStock] = useState({
@@ -13,7 +14,6 @@ function Market() {
     description: "NVIDIA Corporation",
   });
   const [balance, setBalance] = useState(0);
-  const [watchlist, setWatchlist] = useState([]);
 
   // Fetch Wallet Balance
   const fetchBalance = useCallback(async () => {
@@ -25,58 +25,26 @@ function Market() {
     }
   }, []);
 
-  // Fetch Watchlist items
-  const fetchWatchlist = useCallback(async () => {
-    try {
-      const response = await api.get("/watchlist");
-      setWatchlist(response.data.watchlist || []);
-    } catch (error) {
-      console.error("Watchlist fetch error:", error);
-    }
-  }, []);
-
   useEffect(() => {
     fetchBalance();
-    fetchWatchlist();
-  }, [fetchBalance, fetchWatchlist]);
+  }, [fetchBalance]);
 
   const handleBuySuccess = () => {
     fetchBalance();
   };
 
-  const isWatchlisted = watchlist.some(
-    (item) => item.symbol.toUpperCase() === selectedStock?.symbol?.toUpperCase()
-  );
-
-  const toggleWatchlist = async () => {
-    if (!selectedStock) return;
+  const handleAddToWatchlist = async () => {
     try {
-      if (isWatchlisted) {
-        await api.delete(`/watchlist/${selectedStock.symbol}`);
-        toast.success(`Removed ${selectedStock.symbol} from watchlist`);
-        setWatchlist((prev) =>
-          prev.filter(
-            (item) => item.symbol.toUpperCase() !== selectedStock.symbol.toUpperCase()
-          )
-        );
-      } else {
-        await api.post("/watchlist", {
-          symbol: selectedStock.symbol,
-          companyName: selectedStock.description,
-        });
-        toast.success(`Added ${selectedStock.symbol} to watchlist`);
-        setWatchlist((prev) => [
-          ...prev,
-          {
-            symbol: selectedStock.symbol,
-            companyName: selectedStock.description,
-            price: 0,
-            changePercent: 0,
-          },
-        ]);
-      }
+      await addToWatchlist(
+        selectedStock.symbol,
+        selectedStock.description
+      );
+      toast.success("Added to Watchlist");
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to update watchlist");
+      toast.error(
+        error.response?.data?.message ||
+        "Failed to add stock"
+      );
     }
   };
 
@@ -113,18 +81,12 @@ function Market() {
         <div className="mt-8 space-y-6">
           <StockCard stock={selectedStock} />
 
-          {/* Watchlist Toggle Action Button */}
-          <div className="flex justify-end px-1">
+          <div className="px-1">
             <button
-              onClick={toggleWatchlist}
-              className={`flex items-center gap-2 px-5 py-3.5 rounded-xl border text-sm font-bold transition-all duration-200 shadow-sm ${
-                isWatchlisted
-                  ? "bg-amber-500 text-white border-transparent hover:bg-amber-600 hover:shadow"
-                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
-              }`}
+              onClick={handleAddToWatchlist}
+              className="mt-4 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-semibold transition"
             >
-              <span className="text-base leading-none">{isWatchlisted ? "★" : "☆"}</span>
-              <span>{isWatchlisted ? "Watchlisted" : "Add to Watchlist"}</span>
+              ⭐ Add to Watchlist
             </button>
           </div>
 
