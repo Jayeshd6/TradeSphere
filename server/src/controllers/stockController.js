@@ -1,6 +1,6 @@
 const {
   searchSymbol,
-  getQuote: getLiveQuote,
+  getQuote,
   getCompanyProfile,
   getBasicFinancials,
 } = require("../services/stockService");
@@ -95,11 +95,11 @@ const searchStocks = async (req, res) => {
 };
 
 // Get Live Stock Price
-const getQuote = async (req, res) => {
+const getStockQuote = async (req, res) => {
   try {
     const { symbol } = req.params;
 
-    const quote = await getLiveQuote(symbol);
+    const quote = await getQuote(symbol);
 
     return res.status(200).json({
       success: true,
@@ -107,11 +107,11 @@ const getQuote = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Quote Error:", error);
+    console.error("Get Quote Error:", error);
 
     return res.status(500).json({
       success: false,
-      message: "Failed to fetch stock price",
+      message: "Failed to fetch stock quote",
     });
   }
 };
@@ -125,7 +125,7 @@ const getStockDetails = async (req, res) => {
     // 1. Get live stock quote
     let quote = null;
     try {
-      quote = await getLiveQuote(cleanSymbol);
+      quote = await getQuote(cleanSymbol);
     } catch (err) {
       console.warn(`Quote API failed for ${cleanSymbol}:`, err.message);
     }
@@ -215,6 +215,6 @@ const getStockDetails = async (req, res) => {
 
 module.exports = {
   searchStocks,
-  getQuote,
+  getStockQuote,
   getStockDetails,
 };

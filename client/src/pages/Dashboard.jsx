@@ -1,81 +1,168 @@
-import Layout from "../components/layout/Layout";
-import WelcomeBanner from "../components/dashboard/WelcomeBanner";
-import StatCard from "../components/dashboard/StatCard";
-import PortfolioChart from "../components/dashboard/PortfolioChart";
-import AssetAllocation from "../components/dashboard/AssetAllocation";
-import RecentTransactions from "../components/dashboard/RecentTransactions";
-import WalletCard from "../components/dashboard/WalletCard";
-import api from "../services/api";
 import { useEffect, useState } from "react";
-
+import toast from "react-hot-toast";
 import {
   FaChartLine,
   FaWallet,
-  FaMoneyBillWave,
   FaArrowTrendUp,
 } from "react-icons/fa6";
 
+import Layout from "../components/layout/layout";
+import WelcomeBanner from "../components/dashboard/WelcomeBanner";
+import StatCard from "../components/dashboard/StatCard";
+import PortfolioPieChart from "../components/portfolio/PortfolioPieChart";
+import TopPerformers from "../components/dashboard/TopPerformers";
+import MarketOverview from "../components/dashboard/MarketOverview";
+import PortfolioPerformanceChart from "../components/dashboard/PortfolioPerformanceChart";
+import api from "../services/api";
+
 function Dashboard() {
-  const [balance, setBalance] = useState(0);
-  const fetchBalance = async () => {
+  const [dashboard, setDashboard] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchDashboard = async () => {
     try {
-        const response = await api.get("/transactions/balance");
-        setBalance(response.data.balance);
+      const response = await api.get("/dashboard");
+      setDashboard(response.data);
     } catch (error) {
-        toast.error("Failed to fetch balance");
+      console.error("Dashboard fetch error:", error);
+      toast.error(
+        error.response?.data?.message ||
+        "Failed to load dashboard"
+      );
+    } finally {
+      setLoading(false);
     }
-};
-useEffect(() => {
-    fetchBalance();
-}, []);
+  };
+
+  useEffect(() => {
+    fetchDashboard();
+  }, []);
+
+  if (loading) {
+    return (
+      <Layout>
+        <p className="p-6 font-semibold text-slate-500">Loading dashboard...</p>
+      </Layout>
+    );
+  }
+
+  const chartData = dashboard.holdings.map((stock) => ({
+    name: stock.symbol,
+    value: stock.currentValue,
+  }));
+
+  const isProfit = dashboard.overallProfit >= 0;
+
   return (
     <Layout>
-
       {/* Welcome Banner */}
       <WelcomeBanner />
 
-      {/* Stat Cards */}
+      {/* Summary Cards (4) */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        <WalletCard balance={balance} />
-
-        <StatCard
-          title="Portfolio Value"
-          value="₹10,45,000"
-          change="+5.4%"
-          icon={<FaChartLine />}
-        />
-
         <StatCard
           title="Wallet Balance"
-          value="₹2,30,000"
-          change="+2.1%"
+          value={`₹${dashboard.walletBalance.toLocaleString("en-IN")}`}
+          change="Available Cash"
           icon={<FaWallet />}
         />
 
         <StatCard
-          title="Expenses"
-          value="₹32,000"
-          change="-8.2%"
-          icon={<FaMoneyBillWave />}
+          title="Portfolio Value"
+          value={`₹${dashboard.portfolioValue.toLocaleString("en-IN")}`}
+          change={`Cost: ₹${dashboard.totalInvested.toLocaleString("en-IN")}`}
+          icon={<FaChartLine />}
         />
 
         <StatCard
-          title="Today's P/L"
-          value="+₹12,500"
-          change="+1.8%"
+          title="Overall Profit"
+          value={`${isProfit ? "+" : "-"}₹${Math.abs(dashboard.overallProfit).toLocaleString("en-IN")}`}
+          change={`${dashboard.overallProfitPercent.toFixed(2)}%`}
           icon={<FaArrowTrendUp />}
         />
 
+        <StatCard
+          title="Holdings"
+          value={dashboard.holdingsCount}
+          change="Unique stocks"
+          icon={<FaChartLine />}
+        />
       </div>
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-8">
 
-        <PortfolioChart />
-
-        <AssetAllocation />
-
+      {/* Portfolio Performance Line Chart */}
+      <div className="mt-6">
+        <PortfolioPerformanceChart />
       </div>
-      <RecentTransactions />
 
+      {/* Row 1: Market Overview & Portfolio Allocation Chart */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6">
+        <MarketOverview market={dashboard.marketOverview} />
+
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-100">
+          <h2 className="text-xl font-bold text-slate-800 mb-4">
+            Portfolio Allocation
+          </h2>
+          <div className="h-80 w-full">
+            {chartData.length === 0 ? (
+              <div className="flex items-center justify-center h-full text-slate-400 font-semibold text-sm">
+                No holdings to display in pie chart
+              </div>
+            ) : (
+              <PortfolioPieChart data={chartData} />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Row 2: Top Performers & Recent Transactions */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6">
+        <TopPerformers stocks={dashboard.topPerformers} />
+
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-100">
+          <h2 className="text-xl font-bold mb-4">
+            Recent Transactions
+          </h2>
+
+          {dashboard.recentTransactions.length === 0 ? (
+            <p className="text-slate-500">No transactions yet.</p>
+          ) : (
+            <div className="space-y-4">
+              {dashboard.recentTransactions.map((tx) => (
+                <div
+                  key={tx.id}
+                  className="flex justify-between items-center border-b border-slate-50 pb-3 last:border-0 last:pb-0"
+                >
+                  <div>
+                    <h3 className="font-semibold uppercase">
+                      {tx.symbol}
+                    </h3>
+
+                    <p className="text-sm text-slate-500">
+                      {new Date(tx.createdAt).toLocaleDateString("en-IN")}
+                    </p>
+                  </div>
+
+                  <div className="text-right">
+                    <span
+                      className={`px-2 py-1 rounded text-xs font-semibold ${
+                        tx.type === "BUY"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-red-100 text-red-700"
+                      }`}
+                    >
+                      {tx.type}
+                    </span>
+
+                    <p className="mt-1 font-medium">
+                      ₹{tx.total.toLocaleString("en-IN")}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </Layout>
   );
 }

@@ -7,33 +7,18 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-const assetData = [
-  {
-    name: "Stocks",
-    value: 60,
-  },
-  {
-    name: "Mutual Funds",
-    value: 25,
-  },
-  {
-    name: "Cash",
-    value: 10,
-  },
-  {
-    name: "Gold",
-    value: 5,
-  },
-];
-
 const COLORS = [
   "#22c55e",
   "#3b82f6",
   "#f59e0b",
   "#a855f7",
+  "#ec4899",
+  "#3f51b5",
+  "#00bcd4",
+  "#ff5722",
 ];
 
-function AssetAllocation() {
+function AssetAllocation({ data = [] }) {
   return (
     <div className="bg-white rounded-xl shadow-sm p-6">
 
@@ -51,41 +36,49 @@ function AssetAllocation() {
       {/* Chart */}
       <div className="w-full h-80">
 
-        <ResponsiveContainer width="100%" height="100%">
+        {data.length === 0 || (data.length === 1 && data[0].value === 100) ? (
+          <div className="flex items-center justify-center h-full text-slate-400 font-semibold text-sm">
+            Cash: 100% (No stock holdings to display)
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
 
-          <PieChart>
+            <PieChart>
 
-            <Pie
-              data={assetData}
-              dataKey="value"
-              nameKey="name"
-              cx="50%"
-              cy="50%"
-              outerRadius={100}
-              label
-            >
+              <Pie
+                data={data}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                outerRadius={100}
+                label={({ name, value }) => `${name}: ${value}%`}
+              >
 
-              {assetData.map((entry, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={COLORS[index]}
-                />
-              ))}
+                {data.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={COLORS[index % COLORS.length]}
+                  />
+                ))}
 
-            </Pie>
+              </Pie>
 
-            <Tooltip />
+              <Tooltip formatter={(value) => `${value}%`} />
 
-            <Legend />
+              <Legend />
 
-          </PieChart>
+            </PieChart>
 
-        </ResponsiveContainer>
+          </ResponsiveContainer>
+        )}
 
       </div>
 
     </div>
   );
 }
+
+export default AssetAllocation;
 
 export default AssetAllocation;

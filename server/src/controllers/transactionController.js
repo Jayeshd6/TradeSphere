@@ -1,5 +1,6 @@
 const prisma = require("../utils/prisma");
 const { getQuote } = require("../services/stockService");
+const { savePortfolioSnapshot } = require("../services/snapshotService");
 
 const getTransactions = async (req, res) => {
   try {
@@ -178,6 +179,8 @@ const buyStock = async (req, res) => {
     );
 
     // 10. Send response
+    await savePortfolioSnapshot(req.user.id);
+
     return res.status(201).json({
       success: true,
       message: "Stock bought successfully",
@@ -300,6 +303,8 @@ const sellStock = async (req, res) => {
         transaction,
       };
     });
+
+    await savePortfolioSnapshot(req.user.id);
 
     return res.status(201).json({
       success: true,

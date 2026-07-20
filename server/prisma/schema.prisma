@@ -16,6 +16,8 @@ model User {
   portfolios   Portfolio[]
   transactions Transaction[]
   wallet       Wallet?
+  watchlist    Watchlist[]
+  snapshots    PortfolioSnapshot[]
 }
 
 model Portfolio {
@@ -63,4 +65,23 @@ model Wallet {
   userId String @unique
 
   user User @relation(fields: [userId], references: [id])
+}
+
+model Watchlist {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symbol      String
+  companyName String
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, symbol])
+}
+
+model PortfolioSnapshot {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  portfolioValue Float
+  createdAt      DateTime @default(now())
 }

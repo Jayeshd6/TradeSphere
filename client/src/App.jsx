@@ -3,12 +3,14 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
-import Layout from "./components/layout/layout";
+import Layout from "./components/layout/Layout";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import Portfolio from "./pages/Portfolio";
 import Transactions from "./pages/Transactions";
 import Market from "./pages/Market";
+import Watchlist from "./pages/Watchlist";
+import AIAssistant from "./pages/AIAssistant";
 
 
 function App() {
@@ -32,7 +34,7 @@ function App() {
         <Route path="/layout" element={<Layout />} />
 
         <Route path="/profile" element={<Profile />} />
-         <Route
+        <Route
           path="/portfolio"
           element={
             <ProtectedRoute>
@@ -56,9 +58,25 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/watchlist"
+          element={
+            <ProtectedRoute>
+              <Watchlist />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/ai"
+          element={
+            <ProtectedRoute>
+              <AIAssistant />
+            </ProtectedRoute>
+          }
+        />
 
         <Route path="*" element={<NotFound />} />
-       
+
       </Routes>
     </BrowserRouter>
   );

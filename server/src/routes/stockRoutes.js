@@ -2,7 +2,7 @@ const express = require("express");
 
 const {
   searchStocks,
-  getQuote,
+  getStockQuote,
   getStockDetails,
 } = require("../controllers/stockController");
 
@@ -12,7 +12,7 @@ const router = express.Router();
 router.get("/search", searchStocks);
 
 // Live quote
-router.get("/quote/:symbol", getQuote);
+router.get("/quote/:symbol", getStockQuote);
 
 // Detailed stock info (profile + quote + basic financials)
 router.get("/details/:symbol", getStockDetails);

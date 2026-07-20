@@ -1,10 +1,10 @@
 import { useEffect, useState, useCallback } from "react";
 import toast from "react-hot-toast";
-
 import Layout from "../components/layout/Layout";
 import SearchStock from "../components/market/SearchStock";
 import StockCard from "../components/market/StockCard";
 import TradingChart from "../components/market/TradingChart";
+import MarketBuyPanel from "../components/market/MarketBuyPanel";
 import api from "../services/api";
 
 function Market() {
@@ -12,9 +12,8 @@ function Market() {
     symbol: "NVDA",
     description: "NVIDIA Corporation",
   });
-  const [stockDetails, setStockDetails] = useState(null);
   const [balance, setBalance] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [watchlist, setWatchlist] = useState([]);
 
   // Fetch Wallet Balance
   const fetchBalance = useCallback(async () => {
@@ -26,32 +25,59 @@ function Market() {
     }
   }, []);
 
-  // Fetch Selected Stock Details
-  const fetchStockDetails = useCallback(async (symbol) => {
-    setLoading(true);
+  // Fetch Watchlist items
+  const fetchWatchlist = useCallback(async () => {
     try {
-      const response = await api.get(`/stocks/details/${symbol}`);
-      setStockDetails(response.data.details);
+      const response = await api.get("/watchlist");
+      setWatchlist(response.data.watchlist || []);
     } catch (error) {
-      console.error("Details fetch error:", error);
-      toast.error("Failed to load stock details");
-    } finally {
-      setLoading(false);
+      console.error("Watchlist fetch error:", error);
     }
   }, []);
 
   useEffect(() => {
     fetchBalance();
-  }, [fetchBalance]);
-
-  useEffect(() => {
-    if (selectedStock && selectedStock.symbol) {
-      fetchStockDetails(selectedStock.symbol);
-    }
-  }, [selectedStock, fetchStockDetails]);
+    fetchWatchlist();
+  }, [fetchBalance, fetchWatchlist]);
 
   const handleBuySuccess = () => {
     fetchBalance();
+  };
+
+  const isWatchlisted = watchlist.some(
+    (item) => item.symbol.toUpperCase() === selectedStock?.symbol?.toUpperCase()
+  );
+
+  const toggleWatchlist = async () => {
+    if (!selectedStock) return;
+    try {
+      if (isWatchlisted) {
+        await api.delete(`/watchlist/${selectedStock.symbol}`);
+        toast.success(`Removed ${selectedStock.symbol} from watchlist`);
+        setWatchlist((prev) =>
+          prev.filter(
+            (item) => item.symbol.toUpperCase() !== selectedStock.symbol.toUpperCase()
+          )
+        );
+      } else {
+        await api.post("/watchlist", {
+          symbol: selectedStock.symbol,
+          companyName: selectedStock.description,
+        });
+        toast.success(`Added ${selectedStock.symbol} to watchlist`);
+        setWatchlist((prev) => [
+          ...prev,
+          {
+            symbol: selectedStock.symbol,
+            companyName: selectedStock.description,
+            price: 0,
+            changePercent: 0,
+          },
+        ]);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to update watchlist");
+    }
   };
 
   return (
@@ -84,59 +110,42 @@ function Market() {
 
       {/* Selected Stock Block & Interactive Views */}
       {selectedStock && (
-        <div className="mt-8 space-y-8">
-          {/* Symbol & Description Card */}
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-100">
-            <h2 className="text-2xl font-bold text-slate-800">
-              {selectedStock.symbol}
-            </h2>
-            <p className="text-slate-500 mt-1">
-              {selectedStock.description}
-            </p>
+        <div className="mt-8 space-y-6">
+          <StockCard stock={selectedStock} />
+
+          {/* Watchlist Toggle Action Button */}
+          <div className="flex justify-end px-1">
+            <button
+              onClick={toggleWatchlist}
+              className={`flex items-center gap-2 px-5 py-3.5 rounded-xl border text-sm font-bold transition-all duration-200 shadow-sm ${
+                isWatchlisted
+                  ? "bg-amber-500 text-white border-transparent hover:bg-amber-600 hover:shadow"
+                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
+              }`}
+            >
+              <span className="text-base leading-none">{isWatchlisted ? "★" : "☆"}</span>
+              <span>{isWatchlisted ? "Watchlisted" : "Add to Watchlist"}</span>
+            </button>
           </div>
 
           {/* Main Content Grid (Chart + Trade Station) */}
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <svg
-                className="animate-spin h-10 w-10 text-green-600 mb-4"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                ></circle>
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
-              <span className="text-slate-500 font-medium">Fetching live market data...</span>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* TradingView Chart Container */}
+            <div className="lg:col-span-2">
+              <TradingChart symbol={selectedStock.symbol} />
             </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* TradingView Chart Container */}
-              <div className="lg:col-span-2">
-                <TradingChart symbol={selectedStock.symbol} />
-              </div>
 
-              {/* Buy Form & Key Financial Metrics */}
-              <div className="lg:col-span-1">
-                <StockCard
-                  details={stockDetails}
+            {/* Buy Form & Key Financial Metrics */}
+            <div className="lg:col-span-1">
+              <div className="mt-8">
+                <MarketBuyPanel
+                  stock={selectedStock}
                   balance={balance}
                   onBuySuccess={handleBuySuccess}
                 />
               </div>
             </div>
-          )}
+          </div>
         </div>
       )}
     </Layout>

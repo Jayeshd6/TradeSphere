@@ -8,6 +8,7 @@ import {
   FaSignOutAlt,
   FaChartLine,
   FaStore,
+  FaStar,
 } from "react-icons/fa";
 
 import useAuth from "../../hooks/useAuth";
@@ -32,6 +33,11 @@ function Sidebar() {
       path: "/market",
     },
     {
+      name: "Watchlist",
+      icon: <FaStar />,
+      path: "/watchlist",
+    },
+    {
       name: "Expenses",
       icon: <FaWallet />,
       path: "/expenses",
@@ -42,7 +48,7 @@ function Sidebar() {
       path: "/paper-trading",
     },
     {
-      name: "AI Advisor",
+      name: "AI Assistant",
       icon: <FaRobot />,
       path: "/ai",
     },
