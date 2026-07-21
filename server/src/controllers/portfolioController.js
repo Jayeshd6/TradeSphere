@@ -130,9 +130,28 @@ const getLivePortfolio = async (req, res) => {
     }
 };
 
+const { getPortfolioInsightsData } = require("../services/portfolioInsightService");
+
+const getPortfolioInsights = async (req, res) => {
+  try {
+    const insights = await getPortfolioInsightsData(req.user.id);
+    return res.status(200).json({
+      success: true,
+      ...insights,
+    });
+  } catch (error) {
+    console.error("Get Portfolio Insights Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to generate portfolio insights",
+    });
+  }
+};
+
 
 module.exports = {
   addPortfolio,
   getPortfolios,
-  getLivePortfolio
+  getLivePortfolio,
+  getPortfolioInsights,
 };

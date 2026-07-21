@@ -13,6 +13,7 @@ import PortfolioPieChart from "../components/portfolio/PortfolioPieChart";
 import TopPerformers from "../components/dashboard/TopPerformers";
 import MarketOverview from "../components/dashboard/MarketOverview";
 import PortfolioPerformanceChart from "../components/dashboard/PortfolioPerformanceChart";
+import PortfolioInsights from "../components/dashboard/PortfolioInsights";
 import api from "../services/api";
 
 function Dashboard() {
@@ -38,18 +39,13 @@ function Dashboard() {
     fetchDashboard();
   }, []);
 
-  if (loading) {
+  if (loading || !dashboard) {
     return (
       <Layout>
         <p className="p-6 font-semibold text-slate-500">Loading dashboard...</p>
       </Layout>
     );
   }
-
-  const chartData = dashboard.holdings.map((stock) => ({
-    name: stock.symbol,
-    value: stock.currentValue,
-  }));
 
   const isProfit = dashboard.overallProfit >= 0;
 
@@ -95,23 +91,10 @@ function Dashboard() {
       </div>
 
       {/* Row 1: Market Overview & Portfolio Allocation Chart */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6 items-start">
         <MarketOverview market={dashboard.marketOverview} />
 
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-100">
-          <h2 className="text-xl font-bold text-slate-800 mb-4">
-            Portfolio Allocation
-          </h2>
-          <div className="h-80 w-full">
-            {chartData.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-slate-400 font-semibold text-sm">
-                No holdings to display in pie chart
-              </div>
-            ) : (
-              <PortfolioPieChart data={chartData} />
-            )}
-          </div>
-        </div>
+        <PortfolioPieChart portfolios={dashboard.holdings} />
       </div>
 
       {/* Row 2: Top Performers & Recent Transactions */}
@@ -163,6 +146,9 @@ function Dashboard() {
           )}
         </div>
       </div>
+
+      {/* Portfolio Insights */}
+      <PortfolioInsights />
     </Layout>
   );
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
-import Layout from "../components/layout/Layout";
+import Layout from "../components/layout/layout";
 import api from "../services/api";
 
 function Transactions() {

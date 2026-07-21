@@ -23,13 +23,21 @@ const getDashboard = async (req, res) => {
     const holdings = [];
 
     for (const stock of portfolio) {
-      const quote = await getQuote(stock.symbol);
+      let currentPrice = stock.buyPrice;
+      try {
+        const quote = await getQuote(stock.symbol);
+        if (quote && quote.c) {
+          currentPrice = quote.c;
+        }
+      } catch (err) {
+        console.warn(`Failed to fetch quote for ${stock.symbol} on dashboard:`, err.message);
+      }
 
       const invested =
         stock.buyPrice * stock.quantity;
 
       const currentValue =
-        quote.c * stock.quantity;
+        currentPrice * stock.quantity;
 
       const profit =
         currentValue - invested;
@@ -44,7 +52,7 @@ const getDashboard = async (req, res) => {
 
       holdings.push({
         ...stock,
-        currentPrice: quote.c,
+        currentPrice,
         invested,
         currentValue,
         profit,
@@ -178,7 +186,14 @@ const getPerformance = async (req, res) => {
         currentVal += price * stock.quantity;
       }
 
-      const baseVal = currentVal > 0 ? currentVal * 0.9 : 100000;
+      if (currentVal === 0) {
+        return res.status(200).json({
+          success: true,
+          performance: [],
+        });
+      }
+
+      const baseVal = currentVal * 0.9;
       for (let i = 6; i >= 0; i--) {
         const date = new Date();
         date.setDate(date.getDate() - i);

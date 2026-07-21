@@ -1,25 +1,31 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
-import Layout from "../components/layout/Layout";
+import Layout from "../components/layout/layout";
 import BuyStock from "../components/transactions/BuyStock";
 import SellButton from "../components/portfolio/SellButton";
 import PortfolioPieChart from "../components/portfolio/PortfolioPieChart";
 import PortfolioPerformanceChart from "../components/portfolio/PortfolioPerformanceChart";
+import PortfolioInsights from "../components/portfolio/PortfolioInsights";
 import api from "../services/api";
 
 
 function Portfolio() {
     const [portfolios, setPortfolios] = useState([]);
+    const [balance, setBalance] = useState(0);
     const [loading, setLoading] = useState(true);
 
     const fetchPortfolio = async () => {
         try {
             setLoading(true);
 
-            const response = await api.get("/portfolio/live");
+            const [portfolioRes, balanceRes] = await Promise.all([
+                api.get("/portfolio/live"),
+                api.get("/transactions/balance")
+            ]);
 
-            setPortfolios(response.data.portfolio);
+            setPortfolios(portfolioRes.data.portfolio || []);
+            setBalance(balanceRes.data.balance || 0);
 
         } catch (error) {
             toast.error(
@@ -128,12 +134,17 @@ function Portfolio() {
                 </div>
 
             </div>
-            {/* Portfolio Charts */}
+            {/* Portfolio Charts & Insights */}
             {portfolios.length > 0 && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                    <PortfolioPieChart portfolios={portfolios} />
-                    <PortfolioPerformanceChart portfolios={portfolios} />
-                </div>
+                <>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                        <PortfolioPieChart portfolios={portfolios} />
+                        <PortfolioPerformanceChart portfolios={portfolios} />
+                    </div>
+                    <div className="mb-8">
+                        <PortfolioInsights portfolios={portfolios} balance={balance} />
+                    </div>
+                </>
             )}
 
             {/* Buy Stock */}

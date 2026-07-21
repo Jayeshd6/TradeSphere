@@ -1,116 +1,144 @@
-const { GoogleGenAI } = require("@google/genai");
+const prisma = require("../utils/prisma");
+const { getQuote } = require("./stockService");
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-});
+const analyzeQuestion = async (question, userId, history = []) => {
+  // Retrieve user portfolio and wallet details for context injection
+  const wallet = await prisma.wallet.findUnique({ where: { userId } });
+  const portfolios = await prisma.portfolio.findMany({ where: { userId } });
 
-const analyzeQuestion = async (question) => {
+  const cashBalance = wallet?.balance || 0;
+  const portfolioCost = portfolios.reduce((sum, p) => sum + p.buyPrice * p.quantity, 0);
+  const holdingsText = portfolios
+    .map((p) => `- ${p.symbol}: ${p.quantity} shares (avg cost: ₹${p.buyPrice})`)
+    .join("\n");
+
   // Silent fallback if API key is not configured yet or has placeholder value
   if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === "YOUR_API_KEY") {
     const q = (question || "").toLowerCase();
 
+    if (q.includes("portfolio") || q.includes("perform") || q.includes("how is my") || q.includes("summarize")) {
+      return `## Portfolio Performance Summary
+
+- **Total Cost Basis**: ₹${portfolioCost.toLocaleString("en-IN")}
+- **Active Holdings**: ${portfolios.length} positions
+- **Available Cash**: ₹${cashBalance.toLocaleString("en-IN")}
+
+### Suggestions
+- Diversify across other sectors like Finance or FMCG to mitigate sector risk.
+- Keep a 15% cash cushion to capitalize on market opportunities. Always do your own research.`;
+    }
+
+    if (q.includes("cash") || q.includes("money") || q.includes("wallet")) {
+      return `## Cash Reserve Insights
+
+- **Wallet Balance**: ₹${cashBalance.toLocaleString("en-IN")}
+- **Reserve Cushion**: Adequate liquidity ready for investment opportunities.
+
+### Suggestions
+- Keep 15-20% cash reserve for dip opportunities. Always do your own research.`;
+    }
+
+    if (q.includes("best") || q.includes("performer")) {
+      return `## Best Performer Analysis
+
+- Based on recent quotes, your portfolio holds **${portfolios.length}** positions. 
+- Try testing with transaction details to verify live performance curves.
+
+Always do your own research.`;
+    }
+
+    if (q.includes("diversif")) {
+      return `## Understanding Diversification
+
+Diversification is the strategic allocation of capital across different financial instruments, sectors, and asset classes to reduce risk exposure.
+
+- **Your Portfolio Status**: You currently hold ${portfolios.length} assets.
+- **Rule of Thumb**: Aim for 10-15 stocks across 3-4 sectors to spread sector risk.
+
+Always do your own research.`;
+    }
+
+    if (q.includes("p/e") || q.includes("pe ratio")) {
+      return `## Price-to-Earnings (P/E) Ratio
+
+The **P/E Ratio** compares a company's share price to its earnings per share (EPS), illustrating how much investors are willing to pay per rupee of profit.
+
+- **Formula**: Share Price / Earnings Per Share
+- **Usage**: A high P/E ratio implies high growth expectations, while a low P/E ratio indicates undervaluation or cyclical headwinds.
+
+Always do your own research.`;
+    }
+
     if (q.includes("apple") || q.includes("aapl")) {
-      return `1. Overview
+      return `## Apple Inc. (AAPL) Analysis
 
-Apple Inc. (AAPL) is a global technology giant famous for consumer electronics (iPhone, iPad, Mac), software ecosystems, and rapidly expanding subscription services (iCloud, Apple Music, Apple Pay).
+- **Overview**: Consumer tech giant with highly sticky services and hardware ecosystems.
+- **Pros**: Outstanding brand loyalty, robust cash balance, and share buybacks.
+- **Cons**: High hardware dependency and regulatory antitrust pressures.
 
-2. Pros
-
-• Unrivaled ecosystem lock-in and high brand loyalty.
-• Massive cash generation, stock buybacks, and expanding service margins.
-
-3. Risks
-
-• High dependence on hardware cycles (primarily iPhone sales).
-• Worldwide regulatory and antitrust scrutiny over App Store policies.
-
-4. Recommendation
-
-Apple is a top-tier core portfolio asset suitable for long-term investors. Accumulate shares incrementally during market dips. Always do your own research.`;
+Always do your own research.`;
     }
 
     if (q.includes("tcs") || q.includes("tata consultancy")) {
-      return `1. Overview
+      return `## TCS (TCS.NS) Analysis
 
-Tata Consultancy Services (TCS) is an Indian IT services powerhouse and a crown jewel of the Tata Group, helping global businesses execute digital transformations.
+- **Overview**: Asia's premier IT consulting provider with high dividend payouts.
+- **Pros**: Highly sticky multi-year enterprise contracts.
+- **Cons**: Profit margin pressures and global technology spending headwinds.
 
-2. Pros
-
-• Highly reliable recurring revenue streams and long-term contracts.
-• Consistently high dividend payout ratios and strong defensive metrics.
-
-3. Risks
-
-• Global tech spending slowdowns or deferrals by enterprise clients.
-• Rising domestic talent costs and margin pressures in consulting.
-
-4. Recommendation
-
-TCS is a safe, high-yielding blue-chip stock ideal for wealth preservation and stable dividends. Always do your own research.`;
+Always do your own research.`;
     }
 
     if (q.includes("tesla") || q.includes("tsla")) {
-      return `1. Overview
+      return `## Tesla Inc. (TSLA) Analysis
 
-Tesla, Inc. (TSLA) is the global leader in electric vehicles (EVs), scaling energy storage systems and investing heavily in FSD autonomy and robotics.
+- **Overview**: Leader in EV sales, autonomy, energy storage, and robotics.
+- **Pros**: Highly efficient manufacturing operations.
+- **Cons**: Heavy pricing pressure and high growth multiple valuation volatility.
 
-2. Pros
-
-• Pioneer status with a dominant battery supply chain and supercharger network.
-• High cash flow margin and production efficiency relative to legacy rivals.
-
-3. Risks
-
-• Squeezed vehicle margins due to price competition from Chinese brands.
-• Extremely high growth multiple valuation, resulting in high volatility.
-
-4. Recommendation
-
-Tesla is a high-reward growth stock suitable for risk-tolerant portfolios. Accumulate on dips. Always do your own research.`;
+Always do your own research.`;
     }
 
     // Default response (NVIDIA)
-    return `1. Overview
+    return `## NVIDIA Corporation (NVDA) Analysis
 
-NVIDIA Corporation (NVDA) is the premier designer of GPU chips and developer libraries (CUDA) used to run high-performance AI workloads.
+- **Overview**: Absolute leader in hardware GPUs and software packages (CUDA) driving artificial intelligence workloads.
+- **Pros**: Massive datacenter infrastructure spending tailwinds.
+- **Cons**: Cyclical semiconductor demand.
 
-2. Pros
-
-• Market-leading GPUs for AI training and inference.
-• High profitability margins with massive datacenter infrastructure spending.
-
-3. Risks
-
-• High price-to-earnings valuation.
-• Cyclical demand changes in technology chips.
-
-4. Recommendation
-
-NVIDIA is a solid long-term investment proxy for AI development. Consider purchasing incrementally during market dips to average your cost. Always do your own research.`;
+Always do your own research.`;
   }
 
-  const prompt = `
-You are a professional financial advisor.
+  const systemInstruction = `
+You are TradeSphere AI, an expert virtual financial advisor.
 
-Answer the following investment question in this format:
+User's Portfolio Context:
+- Cash Wallet Balance: ₹${cashBalance.toLocaleString("en-IN")}
+- Total Portfolio Cost: ₹${portfolioCost.toLocaleString("en-IN")}
+- Holdings List:
+${holdingsText || "No holdings yet."}
 
-1. Overview
-2. Pros
-3. Risks
-4. Recommendation
+Instructions:
+1. Provide educational guidance only.
+2. Do NOT provide guaranteed returns or absolute financial advice.
+3. Always include a disclaimer reminding the user to do their own research (DYOR).
+4. Format your responses clearly using Markdown headings, lists, and bold keywords.
+  `;
 
-Question:
-${question}
+  const chatHistory = history.map((m) => ({
+    role: m.role === "assistant" ? "model" : "user",
+    parts: [{ text: m.content }],
+  }));
 
-Do not give guaranteed financial advice.
-Always remind the user to do their own research.
-`;
-
-  const response = await ai.models.generateContent({
+  const chat = ai.chats.create({
     model: "gemini-2.5-flash",
-    contents: prompt,
+    config: {
+      systemInstruction,
+    },
+    history: chatHistory,
   });
 
+  const response = await chat.sendMessage({ message: question });
   return response.text;
 };
 

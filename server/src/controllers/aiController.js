@@ -3,7 +3,7 @@ const prisma = require("../utils/prisma");
 
 const analyzeStock = async (req, res) => {
   try {
-    const { question } = req.body;
+    const { question, history } = req.body;
 
     if (!question) {
       return res.status(400).json({
@@ -12,7 +12,7 @@ const analyzeStock = async (req, res) => {
       });
     }
 
-    const answer = await analyzeQuestion(question);
+    const answer = await analyzeQuestion(question, req.user.id, history || []);
 
     return res.status(200).json({
       success: true,

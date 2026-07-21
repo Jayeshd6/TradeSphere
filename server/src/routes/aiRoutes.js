@@ -8,7 +8,7 @@ const {
     analyzePortfolio,
 } = require("../controllers/aiController");
 
-router.post("/analyze-stock", analyzeStock);
+router.post("/analyze-stock", protect, analyzeStock);
 router.get("/portfolio-analysis", protect, analyzePortfolio);
 
 module.exports = router;
