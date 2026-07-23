@@ -1,5 +1,269 @@
+const { GoogleGenAI } = require("@google/genai");
 const prisma = require("../utils/prisma");
 const { getQuote } = require("./stockService");
+
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+});
+
+const getOfflineFallback = (
+  question,
+  cashBalance,
+  portfolioCost,
+  portfolios,
+  monthlySpendTotal,
+  prevMonthlySpendTotal,
+  highestSpendCategory,
+  maxCatAmount,
+  categoryBreakdownTextStr
+) => {
+  const q = (question || "").toLowerCase();
+
+  // New expense triggers
+  if (q.includes("spend") || q.includes("expense") || q.includes("how much did i spend")) {
+    if (q.includes("highest")) {
+      return `## Highest Spending Category Analysis
+
+| Metric | Details |
+| :--- | :--- |
+| Highest Category | ${highestSpendCategory} |
+| Total Spent in Category | ₹${(maxCatAmount > 0 ? maxCatAmount : 0).toLocaleString("en-IN")} |
+| Overall Month Spend | ₹${monthlySpendTotal.toLocaleString("en-IN")} |
+
+### Suggestions
+- Set category budget limits inside your **Expense Tracker** dashboard to control excess category allocations.
+
+> ⚠️ **Disclaimer:** This summary is for educational and informational purposes only and does not constitute financial advice. Always perform your own research (DYOR) before investing.`;
+    }
+
+    if (q.includes("compare") || q.includes("last month")) {
+      let percentDiff = 0;
+      if (prevMonthlySpendTotal > 0) {
+        percentDiff = ((monthlySpendTotal - prevMonthlySpendTotal) / prevMonthlySpendTotal) * 100;
+      }
+      return `## Monthly Expenses Comparison
+
+| Period | Total Spent | Change % |
+| :--- | :--- | :--- |
+| Current Month | ₹${monthlySpendTotal.toLocaleString("en-IN")} | ${percentDiff >= 0 ? "+" : ""}${percentDiff.toFixed(1)}% |
+| Last Month | ₹${prevMonthlySpendTotal.toLocaleString("en-IN")} | Base |
+
+### Key Observations
+- You spent **₹${monthlySpendTotal.toLocaleString("en-IN")}** this month vs **₹${prevMonthlySpendTotal.toLocaleString("en-IN")}** last month.
+- This represents a ${percentDiff >= 0 ? "growth" : "reduction"} of **${Math.abs(percentDiff).toFixed(1)}%** in your household outflows.
+
+> ⚠️ **Disclaimer:** This summary is for educational and informational purposes only and does not constitute financial advice. Always perform your own research (DYOR) before investing.`;
+    }
+
+    return `## Monthly Expenses Summary
+
+- **Total Spent This Month**: ₹${monthlySpendTotal.toLocaleString("en-IN")}
+- **Daily Average Spend**: ₹${(new Date().getDate() > 0 ? parseFloat((monthlySpendTotal / new Date().getDate()).toFixed(2)) : 0).toLocaleString("en-IN")}
+- **Highest Spending Category**: ${highestSpendCategory}
+
+### Category Breakdown
+${categoryBreakdownTextStr || "- No expenses recorded this month."}
+
+> ⚠️ **Disclaimer:** This summary is for educational and informational purposes only and does not constitute financial advice. Always perform your own research (DYOR) before investing.`;
+  }
+
+  if (q.includes("tips") || q.includes("reduce my expenses")) {
+    return `## Spending Reduction & Strategic Tips
+
+Based on your spending behavior showing **${highestSpendCategory}** as your highest category:
+- **Minimize Order-outs**: If Food/Shopping is high, set a weekly cooking routine or shopping limits.
+- **Audit Subscriptions**: Review utilities or billing charges to cut unused plans.
+- **Track Weekly Goals**: Break your monthly budget into micro weekly targets.
+
+> ⚠️ **Disclaimer:** This summary is for educational and informational purposes only and does not constitute financial advice. Always perform your own research (DYOR) before investing.`;
+  }
+
+  if (q.includes("invest") || q.includes("can i invest")) {
+    const surplus = cashBalance - monthlySpendTotal;
+    const canInvest = surplus >= 5000;
+    return `## Investment Capital Analysis
+
+| Parameter | Details |
+| :--- | :--- |
+| Monthly Cash Balance | ₹${cashBalance.toLocaleString("en-IN")} |
+| Current Monthly Spend | ₹${monthlySpendTotal.toLocaleString("en-IN")} |
+| Net Available Surplus | ₹${surplus.toLocaleString("en-IN")} |
+| Target Investment Amount | ₹5,000 |
+
+### Feasibility Study
+- **Result**: ${canInvest ? "✅ Feasible to Invest" : "⚠️ High Liquidity Risk"}
+- **Analysis**: Your surplus after monthly expenses is **₹${surplus.toLocaleString("en-IN")}**.
+- **Action**: ${canInvest ? "You can proceed with investing ₹5,000 as it leaves a healthy cushion." : "Reduce your expenses first or deploy cash reserves incrementally to build capital."}
+
+> ⚠️ **Disclaimer:** This summary is for educational and informational purposes only and does not constitute financial advice. Always perform your own research (DYOR) or consult a qualified financial advisor before investing.`;
+  }
+
+  if (q.includes("portfolio") || q.includes("perform") || q.includes("how is my") || q.includes("summarize")) {
+    return `## Portfolio Performance Summary
+
+- **Total Cost Basis**: ₹${portfolioCost.toLocaleString("en-IN")}
+- **Active Holdings**: ${portfolios.length} positions
+- **Available Cash**: ₹${cashBalance.toLocaleString("en-IN")}
+
+### Suggestions
+- Diversify across other sectors like Finance or FMCG to mitigate sector risk.
+- Keep a 15% cash cushion to capitalize on market opportunities.
+
+> ⚠️ **Disclaimer:** This summary is for educational and informational purposes only and does not constitute financial advice. Always perform your own research (DYOR) before investing.`;
+  }
+
+  if (q.includes("cash") || q.includes("money") || q.includes("wallet")) {
+    return `## Cash Reserve Insights
+
+- **Wallet Balance**: ₹${cashBalance.toLocaleString("en-IN")}
+- **Reserve Cushion**: Adequate liquidity ready for investment opportunities.
+
+### Suggestions
+- Keep 15-20% cash reserve for dip opportunities.
+
+> ⚠️ **Disclaimer:** This summary is for educational and informational purposes only and does not constitute financial advice. Always perform your own research (DYOR) before investing.`;
+  }
+
+  if (q.includes("best") || q.includes("performer")) {
+    return `## Best Performer Analysis
+
+- Based on recent quotes, your portfolio holds **${portfolios.length}** positions. 
+- Try testing with transaction details to verify live performance curves.
+
+> ⚠️ **Disclaimer:** This summary is for educational and informational purposes only and does not constitute financial advice. Always perform your own research (DYOR) before investing.`;
+  }
+
+  if (q.includes("diversif")) {
+    return `## Understanding Diversification
+
+Diversification is the strategic allocation of capital across different financial instruments, sectors, and asset classes to reduce risk exposure.
+
+- **Your Portfolio Status**: You currently hold ${portfolios.length} assets.
+- **Rule of Thumb**: Aim for 10-15 stocks across 3-4 sectors to spread sector risk.
+
+> ⚠️ **Disclaimer:** This summary is for educational and informational purposes only and does not constitute financial advice. Always perform your own research (DYOR) before investing.`;
+  }
+
+  if (q.includes("p/e") || q.includes("pe ratio")) {
+    return `## Price-to-Earnings (P/E) Ratio
+
+The **P/E Ratio** compares a company's share price to its earnings per share (EPS), illustrating how much investors are willing to pay per rupee of profit.
+
+- **Formula**: Share Price / Earnings Per Share
+- **Usage**: A high P/E ratio implies growth expectations, while a low P/E ratio indicates undervaluation or cyclical headwinds.
+
+> ⚠️ **Disclaimer:** This summary is for educational and informational purposes only and does not constitute financial advice. Always perform your own research (DYOR) before investing.`;
+  }
+
+  if (q.includes("apple") || q.includes("aapl")) {
+    return `## Apple Inc. (AAPL) | Company Profile & Investment Overview
+
+| Attribute | Details |
+| :--- | :--- |
+| Industry | Consumer Technology / Ecosystem Services |
+| Parent Company | Independent |
+| Primary Market | Global (Consumer electronics and digital subscriptions) |
+| Public Stock Status | Publicly Traded (NASDAQ: AAPL) |
+
+### Key Business Highlights
+- **Ecosystem Lock-in**: High user retention and brand loyalty across iPhone, iPad, and Mac hardware ecosystems.
+- **Service Expansion**: Fast-growing margin streams via iCloud, Apple Pay, and Apple Music subscriptions.
+
+### Investment & Market Considerations
+Apple is a foundational growth asset suitable for long-term equity portfolios:
+- **Pros**: Unmatched cash flow Generation and consistent stock buybacks.
+- **Cons**: High hardware product dependency cycles and global regulatory scrutiny.
+
+> ⚠️ **Disclaimer:** This summary is for educational and informational purposes only and does not constitute financial advice. Always perform your own research (DYOR) or consult a qualified financial advisor before investing.`;
+  }
+
+  if (q.includes("tcs") || q.includes("tata consultancy")) {
+    return `## Tata Consultancy Services (TCS) | Company Profile & Investment Overview
+
+| Attribute | Details |
+| :--- | :--- |
+| Industry | IT Services / Enterprise Consulting |
+| Parent Company | Tata Group |
+| Primary Market | Global (Digital transformation operations) |
+| Public Stock Status | Publicly Traded (NSE: TCS) |
+
+### Key Business Highlights
+- **Enterprise Contracts**: Massive multi-year outsourcing deals and sticky recurring revenues.
+- **Tata Pedigree**: Strong corporate governance and defensive financial returns.
+
+### Investment & Market Considerations
+TCS is a premium dividend play ideal for conservative portfolios:
+- **Pros**: High cash conversion ratios and consistent shareholder buybacks.
+- **Cons**: Margin compression from rising domestic developer salaries and global tech budget deferred projects.
+
+> ⚠️ **Disclaimer:** This summary is for educational and informational purposes only and does not constitute financial advice. Always perform your own research (DYOR) or consult a qualified financial advisor before investing.`;
+  }
+
+  if (q.includes("tesla") || q.includes("tsla")) {
+    return `## Tesla Inc. (TSLA) | Company Profile & Investment Overview
+
+| Attribute | Details |
+| :--- | :--- |
+| Industry | Electric Vehicles / Energy Storage & Autonomy |
+| Parent Company | Independent |
+| Primary Market | Global (EV manufacturing, solar, battery networks) |
+| Public Stock Status | Publicly Traded (NASDAQ: TSLA) |
+
+### Key Business Highlights
+- **EV Pioneer**: Vertically integrated battery supply chain and supercharger network.
+- **AI & Robotics**: Massive computation investments in Full Self-Driving (FSD) networks.
+
+### Investment & Market Considerations
+Tesla is a highly volatile growth asset suitable for risk-tolerant portfolios:
+- **Pros**: High production efficiencies and cash balance reserves.
+- **Cons**: Pricing compression from Chinese competitor models and growth multiple valuation swings.
+
+> ⚠️ **Disclaimer:** This summary is for educational and informational purposes only and does not constitute financial advice. Always perform your own research (DYOR) or consult a qualified financial advisor before investing.`;
+  }
+
+  if (q.includes("flipkart")) {
+    return `## Flipkart | Company Profile & Investment Overview
+
+| Attribute | Details |
+| :--- | :--- |
+| Industry | E-commerce / Retail Technology |
+| Parent Company | Walmart (Majority stake acquired in 2018) |
+| Primary Market | India (B2C sector) |
+| Public Stock Status | Private (Not directly traded on public stock exchanges) |
+
+### Key Business Highlights
+- **Market Leader**: One of India’s largest online marketplaces, competing directly with global giants like Amazon in electronics, fashion, and home goods.
+- **Subsidiary Structure**: Operating under Walmart, Flipkart's financial growth contributes directly to Walmart's global earnings reports.
+
+### Investment & Market Considerations
+Since Flipkart is privately held, individual investors cannot buy direct shares on stock exchanges (unlike public stocks such as AAPL or AMZN). If you want exposure to Flipkart or the Indian e-commerce sector, consider these alternative routes:
+- **Walmart (NYSE: WMT)**: Provides indirect exposure to Flipkart's performance and growth in India.
+- **India-Focused ETFs**: Funds tracking the broader Indian tech and retail economy.
+- **Global E-Commerce Stocks**: Diversified exposure via publicly traded e-commerce leaders.
+
+> ⚠️ **Disclaimer:** This summary is for educational and informational purposes only and does not constitute financial advice. Always perform your own research (DYOR) or consult a qualified financial advisor before investing.`;
+  }
+
+  // If it's an unknown query, return a dynamic mock analysis for the requested query!
+  const capitalizedQuery = question.charAt(0).toUpperCase() + question.slice(1);
+  return `## ${capitalizedQuery} | Company Profile & Investment Overview
+
+| Attribute | Details |
+| :--- | :--- |
+| Target Entity | ${capitalizedQuery} |
+| Mode | Offline Fallback Simulation |
+| Status | Data Index Unavailable |
+| Guidance | Connect active API key to fetch real-time metrics |
+
+### Key Business Highlights
+- Detailed stock indices for **${capitalizedQuery}** are currently unavailable in offline fallback mode.
+- Connect a valid Gemini API key to query live conversational AI market reviews for this company.
+
+### Investment & Market Considerations
+- **Strategic Rule**: Evaluate company balance sheets, revenue growth, and debt-to-equity ratios.
+
+> ⚠️ **Disclaimer:** This summary is for educational and informational purposes only and does not constitute financial advice. Always perform your own research (DYOR) or consult a qualified financial advisor before investing.`;
+};
 
 const analyzeQuestion = async (question, userId, history = []) => {
   // Retrieve user portfolio and wallet details for context injection
@@ -12,105 +276,53 @@ const analyzeQuestion = async (question, userId, history = []) => {
     .map((p) => `- ${p.symbol}: ${p.quantity} shares (avg cost: ₹${p.buyPrice})`)
     .join("\n");
 
-  // Silent fallback if API key is not configured yet or has placeholder value
-  if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === "YOUR_API_KEY") {
-    const q = (question || "").toLowerCase();
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+  const startOfCurrentMonth = new Date(currentYear, currentMonth, 1);
+  const endOfCurrentMonth = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999);
+  
+  const startOfPrevMonth = new Date(currentYear, currentMonth - 1, 1);
+  const endOfPrevMonth = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999);
 
-    if (q.includes("portfolio") || q.includes("perform") || q.includes("how is my") || q.includes("summarize")) {
-      return `## Portfolio Performance Summary
+  const [currentExpenses, prevExpenses] = await Promise.all([
+    prisma.expense.findMany({
+      where: {
+        userId,
+        expenseDate: { gte: startOfCurrentMonth, lte: endOfCurrentMonth }
+      }
+    }),
+    prisma.expense.findMany({
+      where: {
+        userId,
+        expenseDate: { gte: startOfPrevMonth, lte: endOfPrevMonth }
+      }
+    })
+  ]);
 
-- **Total Cost Basis**: ₹${portfolioCost.toLocaleString("en-IN")}
-- **Active Holdings**: ${portfolios.length} positions
-- **Available Cash**: ₹${cashBalance.toLocaleString("en-IN")}
+  const monthlySpendTotal = currentExpenses.reduce((sum, e) => sum + e.amount, 0);
+  const prevMonthlySpendTotal = prevExpenses.reduce((sum, e) => sum + e.amount, 0);
 
-### Suggestions
-- Diversify across other sectors like Finance or FMCG to mitigate sector risk.
-- Keep a 15% cash cushion to capitalize on market opportunities. Always do your own research.`;
-    }
+  const categoryMap = {};
+  currentExpenses.forEach(e => {
+    categoryMap[e.category] = (categoryMap[e.category] || 0) + e.amount;
+  });
 
-    if (q.includes("cash") || q.includes("money") || q.includes("wallet")) {
-      return `## Cash Reserve Insights
-
-- **Wallet Balance**: ₹${cashBalance.toLocaleString("en-IN")}
-- **Reserve Cushion**: Adequate liquidity ready for investment opportunities.
-
-### Suggestions
-- Keep 15-20% cash reserve for dip opportunities. Always do your own research.`;
-    }
-
-    if (q.includes("best") || q.includes("performer")) {
-      return `## Best Performer Analysis
-
-- Based on recent quotes, your portfolio holds **${portfolios.length}** positions. 
-- Try testing with transaction details to verify live performance curves.
-
-Always do your own research.`;
-    }
-
-    if (q.includes("diversif")) {
-      return `## Understanding Diversification
-
-Diversification is the strategic allocation of capital across different financial instruments, sectors, and asset classes to reduce risk exposure.
-
-- **Your Portfolio Status**: You currently hold ${portfolios.length} assets.
-- **Rule of Thumb**: Aim for 10-15 stocks across 3-4 sectors to spread sector risk.
-
-Always do your own research.`;
-    }
-
-    if (q.includes("p/e") || q.includes("pe ratio")) {
-      return `## Price-to-Earnings (P/E) Ratio
-
-The **P/E Ratio** compares a company's share price to its earnings per share (EPS), illustrating how much investors are willing to pay per rupee of profit.
-
-- **Formula**: Share Price / Earnings Per Share
-- **Usage**: A high P/E ratio implies high growth expectations, while a low P/E ratio indicates undervaluation or cyclical headwinds.
-
-Always do your own research.`;
-    }
-
-    if (q.includes("apple") || q.includes("aapl")) {
-      return `## Apple Inc. (AAPL) Analysis
-
-- **Overview**: Consumer tech giant with highly sticky services and hardware ecosystems.
-- **Pros**: Outstanding brand loyalty, robust cash balance, and share buybacks.
-- **Cons**: High hardware dependency and regulatory antitrust pressures.
-
-Always do your own research.`;
-    }
-
-    if (q.includes("tcs") || q.includes("tata consultancy")) {
-      return `## TCS (TCS.NS) Analysis
-
-- **Overview**: Asia's premier IT consulting provider with high dividend payouts.
-- **Pros**: Highly sticky multi-year enterprise contracts.
-- **Cons**: Profit margin pressures and global technology spending headwinds.
-
-Always do your own research.`;
-    }
-
-    if (q.includes("tesla") || q.includes("tsla")) {
-      return `## Tesla Inc. (TSLA) Analysis
-
-- **Overview**: Leader in EV sales, autonomy, energy storage, and robotics.
-- **Pros**: Highly efficient manufacturing operations.
-- **Cons**: Heavy pricing pressure and high growth multiple valuation volatility.
-
-Always do your own research.`;
-    }
-
-    // Default response (NVIDIA)
-    return `## NVIDIA Corporation (NVDA) Analysis
-
-- **Overview**: Absolute leader in hardware GPUs and software packages (CUDA) driving artificial intelligence workloads.
-- **Pros**: Massive datacenter infrastructure spending tailwinds.
-- **Cons**: Cyclical semiconductor demand.
-
-Always do your own research.`;
-  }
+  let highestSpendCategory = "N/A";
+  let maxCatAmount = -1;
+  const categoryBreakdownTextStr = Object.entries(categoryMap)
+    .map(([c, amt]) => {
+      if (amt > maxCatAmount) {
+        maxCatAmount = amt;
+        highestSpendCategory = c;
+      }
+      return `- ${c}: ₹${amt.toLocaleString("en-IN")}`;
+    })
+    .join("\n");
 
   const systemInstruction = `
-You are TradeSphere AI, an expert virtual financial advisor.
+ROLE & BEHAVIOR:
+You are an expert financial and business AI analyst for TradeSphere. Respond to queries using clean, beautifully formatted, easy-to-read layout structures.
 
 User's Portfolio Context:
 - Cash Wallet Balance: ₹${cashBalance.toLocaleString("en-IN")}
@@ -118,28 +330,64 @@ User's Portfolio Context:
 - Holdings List:
 ${holdingsText || "No holdings yet."}
 
-Instructions:
-1. Provide educational guidance only.
-2. Do NOT provide guaranteed returns or absolute financial advice.
-3. Always include a disclaimer reminding the user to do their own research (DYOR).
-4. Format your responses clearly using Markdown headings, lists, and bold keywords.
+User's Monthly Expenses Context:
+- Total Spend This Month: ₹${monthlySpendTotal.toLocaleString("en-IN")}
+- Spending by Category:
+${categoryBreakdownTextStr || "No expenses recorded this month."}
+- Highest Expense Category: ${highestSpendCategory}
+
+FORMATTING & UI CONSTRAINTS:
+1. NO RAW CONVERSATIONAL FILLERS: Never start with generic filler text. Jump directly into the formatted content.
+2. USE STRUCTURED MARKDOWN:
+   - Use Level 2 (\`##\`) and Level 3 (\`###\`) headers for clear visual separation.
+   - Use Markdown tables (\`| Key | Value |\`) for comparisons, quick facts, or metadata.
+   - Use Blockquotes (\`>\`) for disclaimers, key takeaways, or important warnings.
+   - Use bolding (\`**term**\`) sparingly to highlight core concepts.
+3. SCANNABILITY: Break long walls of text into bite-sized bullet points (maximum 2-3 lines per bullet).
+
+STRUCTURE FOR COMPANY / INVESTMENT OVERVIEWS:
+- Header: Company Name & Core Identity
+- Table: Quick Facts (Parent Company, Market Focus, Status, Main Competitors)
+- Section 1: Overview & Key Highlights
+- Section 2: Investment & Market Considerations
+- Section 3 (Blockquote): Mandatory Disclaimer
   `;
 
-  const chatHistory = history.map((m) => ({
-    role: m.role === "assistant" ? "model" : "user",
-    parts: [{ text: m.content }],
-  }));
+  // Try sending the request first. If key is placeholder, use fallback directly.
+  if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === "YOUR_API_KEY") {
+    return getOfflineFallback(
+      question,
+      cashBalance,
+      portfolioCost,
+      portfolios,
+      monthlySpendTotal,
+      prevMonthlySpendTotal,
+      highestSpendCategory,
+      maxCatAmount,
+      categoryBreakdownTextStr
+    );
+  }
 
-  const chat = ai.chats.create({
-    model: "gemini-2.5-flash",
-    config: {
-      systemInstruction,
-    },
-    history: chatHistory,
-  });
+  try {
+    const chatHistory = history.map((m) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    }));
 
-  const response = await chat.sendMessage({ message: question });
-  return response.text;
+    const chat = ai.chats.create({
+      model: "gemini-2.5-flash",
+      config: {
+        systemInstruction,
+      },
+      history: chatHistory,
+    });
+
+    const response = await chat.sendMessage({ message: question });
+    return response.text;
+  } catch (error) {
+    console.error("Gemini API query failed. Falling back to local responder:", error.message);
+    return getOfflineFallback(question, cashBalance, portfolioCost, portfolios);
+  }
 };
 
 const analyzePortfolioAI = async (portfolio) => {

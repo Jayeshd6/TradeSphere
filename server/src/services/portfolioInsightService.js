@@ -66,44 +66,57 @@ const getPortfolioInsightsData = async (userId) => {
   let worstPerformerSymbol = "";
   let worstPerformerPercent = 999999;
 
-  for (const stock of portfolios) {
-    let currentPrice = stock.buyPrice;
-    try {
-      const quote = await getQuote(stock.symbol);
-      if (quote && quote.c) {
-        currentPrice = quote.c;
+  const holdings = await Promise.all(
+    portfolios.map(async (stock) => {
+      let currentPrice = stock.buyPrice;
+      try {
+        const quote = await getQuote(stock.symbol);
+        if (quote && quote.c) {
+          currentPrice = quote.c;
+        }
+      } catch (err) {
+        console.warn(`Failed to fetch quote for ${stock.symbol} during insights:`, err.message);
       }
-    } catch (err) {
-      console.warn(`Failed to fetch quote for ${stock.symbol} during insights:`, err.message);
-    }
 
-    const invested = stock.buyPrice * stock.quantity;
-    const currentValue = currentPrice * stock.quantity;
-    const profit = currentValue - invested;
-    const profitPercent = invested === 0 ? 0 : (profit / invested) * 100;
+      const invested = stock.buyPrice * stock.quantity;
+      const currentValue = currentPrice * stock.quantity;
+      const profit = currentValue - invested;
+      const profitPercent = invested === 0 ? 0 : (profit / invested) * 100;
 
-    totalInvested += invested;
-    totalPortfolioValue += currentValue;
+      return {
+        ...stock,
+        currentPrice,
+        invested,
+        currentValue,
+        profit,
+        profitPercent,
+      };
+    })
+  );
+
+  for (const h of holdings) {
+    totalInvested += h.invested;
+    totalPortfolioValue += h.currentValue;
 
     // Track sector allocation
-    const cleanSym = stock.symbol.split(".")[0].toUpperCase();
+    const cleanSym = h.symbol.split(".")[0].toUpperCase();
     if (SECTOR_MAP[cleanSym] === "Technology") {
-      techValue += currentValue;
+      techValue += h.currentValue;
     }
 
     // Track largest holding
-    if (currentValue > largestHoldingValue) {
-      largestHoldingValue = currentValue;
+    if (h.currentValue > largestHoldingValue) {
+      largestHoldingValue = h.currentValue;
       largestHoldingSymbol = cleanSym;
     }
 
     // Track performers
-    if (profitPercent > bestPerformerPercent) {
-      bestPerformerPercent = profitPercent;
+    if (h.profitPercent > bestPerformerPercent) {
+      bestPerformerPercent = h.profitPercent;
       bestPerformerSymbol = cleanSym;
     }
-    if (profitPercent < worstPerformerPercent) {
-      worstPerformerPercent = profitPercent;
+    if (h.profitPercent < worstPerformerPercent) {
+      worstPerformerPercent = h.profitPercent;
       worstPerformerSymbol = cleanSym;
     }
   }

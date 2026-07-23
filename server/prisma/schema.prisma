@@ -18,6 +18,7 @@ model User {
   wallet       Wallet?
   watchlist    Watchlist[]
   snapshots    PortfolioSnapshot[]
+  expenses     Expense[]
 }
 
 model Portfolio {
@@ -84,4 +85,17 @@ model PortfolioSnapshot {
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   portfolioValue Float
   createdAt      DateTime @default(now())
+}
+
+model Expense {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title         String
+  amount        Float
+  category      String
+  paymentMethod String?
+  notes         String?
+  expenseDate   DateTime
+  createdAt     DateTime @default(now())
 }

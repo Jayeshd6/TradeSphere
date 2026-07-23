@@ -103,61 +103,164 @@ function AIAssistant() {
   const parseMarkdown = (text) => {
     if (!text) return null;
     const lines = text.split("\n");
-    return lines.map((line, idx) => {
+    const elements = [];
+    let currentTable = [];
+
+    const renderFormattedText = (rawText) => {
+      if (!rawText) return "";
+      const parts = rawText.split("**");
+      return parts.map((part, pidx) => {
+        if (pidx % 2 === 1) {
+          return (
+            <strong key={pidx} className="font-bold text-green-700 bg-green-50 px-1.5 py-0.5 rounded-md border border-green-100/60 inline-block align-middle my-0.5 mx-0.5">
+              {part}
+            </strong>
+          );
+        }
+        return part;
+      });
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+
+      // Check if line is part of a table
+      if (line.startsWith("|") && line.endsWith("|")) {
+        // Skip separator lines like | :--- | :--- |
+        if (line.includes("---") || line.includes(":-")) {
+          continue;
+        }
+        const cells = line.split("|").map(c => c.trim()).filter((c, idx, arr) => idx > 0 && idx < arr.length - 1);
+        currentTable.push(cells);
+        continue;
+      }
+
+      // If we finished reading a table, render it
+      if (currentTable.length > 0) {
+        const headers = currentTable[0];
+        const rows = currentTable.slice(1);
+        elements.push(
+          <div key={`table-${i}`} className="overflow-x-auto my-4 border border-slate-100 rounded-xl">
+            <table className="min-w-full divide-y divide-slate-150 text-xs font-semibold">
+              <thead className="bg-slate-50">
+                <tr>
+                  {headers.map((h, hidx) => (
+                    <th key={hidx} className="px-4 py-2 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">{renderFormattedText(h)}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-slate-100 text-slate-700">
+                {rows.map((row, rowidx) => (
+                  <tr key={rowidx}>
+                    {row.map((cell, cellidx) => (
+                      <td key={cellidx} className="px-4 py-2.5 font-medium">{renderFormattedText(cell)}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+        currentTable = [];
+      }
+
+      if (line.startsWith(">")) {
+        elements.push(
+          <blockquote key={i} className="border-l-4 border-slate-300 pl-4 py-1.5 my-3 italic text-slate-500 bg-slate-50 rounded-r-lg text-xs font-medium">
+            {renderFormattedText(line.slice(1).trim())}
+          </blockquote>
+        );
+        continue;
+      }
+
+      if (line.startsWith("#### ")) {
+        elements.push(
+          <h5 key={i} className="text-xs font-bold text-slate-700 mt-3 mb-1.5 uppercase tracking-wider">
+            {renderFormattedText(line.slice(5))}
+          </h5>
+        );
+        continue;
+      }
       if (line.startsWith("### ")) {
-        return (
-          <h4 key={idx} className="text-sm font-bold text-slate-800 mt-3 mb-1">
-            {line.slice(4)}
+        elements.push(
+          <h4 key={i} className="text-sm font-bold text-slate-800 mt-4 mb-2">
+            {renderFormattedText(line.slice(4))}
           </h4>
         );
+        continue;
       }
       if (line.startsWith("## ")) {
-        return (
-          <h3 key={idx} className="text-base font-extrabold text-slate-800 mt-4 mb-2">
-            {line.slice(3)}
+        elements.push(
+          <h3 key={i} className="text-base font-extrabold text-slate-800 mt-5 mb-3">
+            {renderFormattedText(line.slice(3))}
           </h3>
         );
+        continue;
       }
       if (line.startsWith("# ")) {
-        return (
-          <h2 key={idx} className="text-lg font-black text-slate-900 mt-5 mb-3">
-            {line.slice(2)}
+        elements.push(
+          <h2 key={i} className="text-lg font-black text-slate-900 mt-6 mb-4">
+            {renderFormattedText(line.slice(2))}
           </h2>
         );
+        continue;
       }
       if (line.startsWith("• ") || line.startsWith("- ")) {
-        return (
-          <li key={idx} className="ml-4 list-disc text-xs font-semibold text-slate-650 leading-relaxed mb-1">
-            {line.slice(2)}
+        elements.push(
+          <li key={i} className="ml-4 list-disc text-xs font-semibold text-slate-650 leading-relaxed mb-1">
+            {renderFormattedText(line.slice(2))}
           </li>
         );
+        continue;
       }
       if (/^\d+\.\s/.test(line)) {
-        return (
-          <li key={idx} className="ml-4 list-decimal text-xs font-semibold text-slate-655 leading-relaxed mb-1">
-            {line.replace(/^\d+\.\s/, "")}
+        elements.push(
+          <li key={i} className="ml-4 list-decimal text-xs font-semibold text-slate-650 leading-relaxed mb-1">
+            {renderFormattedText(line.replace(/^\d+\.\s/, ""))}
           </li>
         );
+        continue;
       }
-      if (line.trim() === "") {
-        return <div key={idx} className="h-2" />;
+      if (line === "") {
+        elements.push(<div key={i} className="h-1.5" />);
+        continue;
       }
 
-      // Check for inline bold formatting: **text**
-      const parts = line.split(" ");
-      const renderedParts = parts.map((part, pidx) => {
-        if (part.startsWith("**") && part.endsWith("**")) {
-          return <strong key={pidx} className="font-extrabold text-slate-800">{part.slice(2, -2)} </strong>;
-        }
-        return part + " ";
-      });
-
-      return (
-        <p key={idx} className="text-xs font-semibold text-slate-600 leading-relaxed mb-1.5">
-          {renderedParts}
+      elements.push(
+        <p key={i} className="text-xs font-semibold text-slate-650 leading-relaxed mb-1.5">
+          {renderFormattedText(line)}
         </p>
       );
-    });
+    }
+
+    if (currentTable.length > 0) {
+      const headers = currentTable[0];
+      const rows = currentTable.slice(1);
+      elements.push(
+        <div key="table-last" className="overflow-x-auto my-4 border border-slate-100 rounded-xl">
+          <table className="min-w-full divide-y divide-slate-150 text-xs font-semibold">
+            <thead className="bg-slate-50">
+              <tr>
+                {headers.map((h, hidx) => (
+                  <th key={hidx} className="px-4 py-2 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">{renderFormattedText(h)}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-slate-100 text-slate-700">
+              {rows.map((row, rowidx) => (
+                <tr key={rowidx}>
+                  {row.map((cell, cellidx) => (
+                    <td key={cellidx} className="px-4 py-2.5 font-medium">{renderFormattedText(cell)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    return elements;
   };
 
   return (

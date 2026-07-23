@@ -11,6 +11,7 @@ import Transactions from "./pages/Transactions";
 import Market from "./pages/Market";
 import Watchlist from "./pages/Watchlist";
 import AIAssistant from "./pages/AIAssistant";
+import Expense from "./pages/Expense";
 
 
 function App() {
@@ -63,6 +64,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Watchlist />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/expenses"
+          element={
+            <ProtectedRoute>
+              <Expense />
             </ProtectedRoute>
           }
         />

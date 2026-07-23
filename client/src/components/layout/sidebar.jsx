@@ -9,6 +9,7 @@ import {
   FaChartLine,
   FaStore,
   FaStar,
+  FaReceipt,
 } from "react-icons/fa";
 
 import useAuth from "../../hooks/useAuth";
@@ -38,24 +39,24 @@ function Sidebar() {
       path: "/watchlist",
     },
     {
-      name: "Expenses",
+      name: "Wallet",
       icon: <FaWallet />,
+      path: "/portfolio",
+    },
+    {
+      name: "Expenses",
+      icon: <FaReceipt />,
       path: "/expenses",
     },
     {
-      name: "Paper Trading",
+      name: "Transactions",
       icon: <FaChartLine />,
-      path: "/paper-trading",
+      path: "/transactions",
     },
     {
       name: "AI Assistant",
       icon: <FaRobot />,
       path: "/ai",
-    },
-    {
-      name: "Analytics",
-      icon: <FaChartPie />,
-      path: "/analytics",
     },
     {
       name: "Settings",
@@ -89,10 +90,9 @@ function Sidebar() {
             key={item.name}
             to={item.path}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-3 rounded-lg mb-2 transition-all duration-200 ${
-                isActive
-                  ? "bg-green-500 text-white"
-                  : "text-slate-300 hover:bg-slate-800 hover:text-white"
+              `flex items-center gap-3 px-4 py-3 rounded-lg mb-2 transition-all duration-200 ${isActive
+                ? "bg-green-500 text-white"
+                : "text-slate-300 hover:bg-slate-800 hover:text-white"
               }`
             }
           >

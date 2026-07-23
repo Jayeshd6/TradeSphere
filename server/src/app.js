@@ -9,6 +9,7 @@ const stockRoutes = require("./routes/stockRoutes");
 const watchlistRoutes = require("./routes/watchlistRoutes");
 const aiRoutes = require("./routes/aiRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
+const expenseRoutes = require("./routes/expenseRoutes");
 
 
 const app = express();
@@ -25,6 +26,7 @@ app.use("/api/stocks", stockRoutes);
 app.use("/api/watchlist", watchlistRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/expenses", expenseRoutes);
 
 
 module.exports = app;

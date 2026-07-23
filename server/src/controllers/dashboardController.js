@@ -20,44 +20,37 @@ const getDashboard = async (req, res) => {
     let totalInvested = 0;
     let portfolioValue = 0;
 
-    const holdings = [];
-
-    for (const stock of portfolio) {
-      let currentPrice = stock.buyPrice;
-      try {
-        const quote = await getQuote(stock.symbol);
-        if (quote && quote.c) {
-          currentPrice = quote.c;
+    const holdings = await Promise.all(
+      portfolio.map(async (stock) => {
+        let currentPrice = stock.buyPrice;
+        try {
+          const quote = await getQuote(stock.symbol);
+          if (quote && quote.c) {
+            currentPrice = quote.c;
+          }
+        } catch (err) {
+          console.warn(`Failed to fetch quote for ${stock.symbol} on dashboard:`, err.message);
         }
-      } catch (err) {
-        console.warn(`Failed to fetch quote for ${stock.symbol} on dashboard:`, err.message);
-      }
 
-      const invested =
-        stock.buyPrice * stock.quantity;
+        const invested = stock.buyPrice * stock.quantity;
+        const currentValue = currentPrice * stock.quantity;
+        const profit = currentValue - invested;
+        const profitPercent = invested === 0 ? 0 : (profit / invested) * 100;
 
-      const currentValue =
-        currentPrice * stock.quantity;
+        return {
+          ...stock,
+          currentPrice,
+          invested,
+          currentValue,
+          profit,
+          profitPercent,
+        };
+      })
+    );
 
-      const profit =
-        currentValue - invested;
-
-      const profitPercent =
-        invested === 0
-          ? 0
-          : (profit / invested) * 100;
-
-      totalInvested += invested;
-      portfolioValue += currentValue;
-
-      holdings.push({
-        ...stock,
-        currentPrice,
-        invested,
-        currentValue,
-        profit,
-        profitPercent,
-      });
+    for (const h of holdings) {
+      totalInvested += h.invested;
+      portfolioValue += h.currentValue;
     }
 
     const overallProfit = portfolioValue - totalInvested;
@@ -84,12 +77,11 @@ const getDashboard = async (req, res) => {
     let sensexQuote = { c: 79850.30, dp: 0.71 };
 
     try {
-      const spy = await getQuote("SPY");
+      const [spy, qqq] = await Promise.all([
+        getQuote("SPY").catch(() => null),
+        getQuote("QQQ").catch(() => null),
+      ]);
       if (spy && spy.c) spyQuote = spy;
-    } catch (e) {}
-
-    try {
-      const qqq = await getQuote("QQQ");
       if (qqq && qqq.c) qqqQuote = qqq;
     } catch (e) {}
 
