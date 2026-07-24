@@ -118,6 +118,13 @@ const loginUser = async (req, res) => {
       });
     }
 
+    if (user.isDisabled) {
+      return res.status(403).json({
+        success: false,
+        message: "Your account has been disabled. Please contact support."
+      });
+    }
+
     // Generate JWT
     const token = generateToken(user.id);
 
@@ -129,6 +136,7 @@ const loginUser = async (req, res) => {
         id: user.id,
         fullName: user.fullName,
         email: user.email,
+        role: user.role,
       },
     });
   } catch (error) {

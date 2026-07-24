@@ -36,6 +36,18 @@ const addToWatchlist = async (req, res) => {
       },
     });
 
+    try {
+      const { createNotification } = require("../services/notificationService");
+      await createNotification({
+        userId: req.user.id,
+        title: "Added to Watchlist",
+        message: `Added ${symbol.toUpperCase()} (${companyName}) to Watchlist.`,
+        type: "WATCHLIST"
+      });
+    } catch (e) {
+      console.error("Watchlist notification error:", e);
+    }
+
     return res.status(201).json({
       success: true,
       message: "Added to watchlist",

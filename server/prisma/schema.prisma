@@ -8,10 +8,12 @@ datasource db {
 }
 
 model User {
-  id       String @id @default(uuid())
+  id         String @id @default(uuid())
   fullName   String
-  email    String @unique
-  password String
+  email      String @unique
+  password   String
+  role       String @default("USER")
+  isDisabled Boolean @default(false)
 
   portfolios   Portfolio[]
   transactions Transaction[]
@@ -19,6 +21,8 @@ model User {
   watchlist    Watchlist[]
   snapshots    PortfolioSnapshot[]
   expenses     Expense[]
+  notifications Notification[]
+  goals         Goal[]
 }
 
 model Portfolio {
@@ -98,4 +102,27 @@ model Expense {
   notes         String?
   expenseDate   DateTime
   createdAt     DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Goal {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title             String
+  targetAmount      Float
+  currentAmount     Float    @default(0)
+  targetDate        DateTime
+  monthlyInvestment Float?
+  createdAt         DateTime @default(now())
 }

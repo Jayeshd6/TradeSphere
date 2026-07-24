@@ -16,18 +16,24 @@ import PortfolioPerformanceChart from "../components/dashboard/PortfolioPerforma
 import PortfolioInsights from "../components/dashboard/PortfolioInsights";
 import api from "../services/api";
 
+import SkeletonDashboard from "../components/loading/SkeletonDashboard";
+import ErrorMessage from "../components/common/ErrorMessage";
+
 function Dashboard() {
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const fetchDashboard = async () => {
     try {
+      setLoading(true);
+      setError("");
       const response = await api.get("/dashboard");
       setDashboard(response.data);
-    } catch (error) {
-      console.error("Dashboard fetch error:", error);
-      toast.error(
-        error.response?.data?.message ||
+    } catch (err) {
+      console.error("Dashboard fetch error:", err);
+      setError(
+        err.response?.data?.message ||
         "Failed to load dashboard"
       );
     } finally {
@@ -39,10 +45,18 @@ function Dashboard() {
     fetchDashboard();
   }, []);
 
-  if (loading || !dashboard) {
+  if (loading) {
     return (
       <Layout>
-        <p className="p-6 font-semibold text-slate-500">Loading dashboard...</p>
+        <SkeletonDashboard />
+      </Layout>
+    );
+  }
+
+  if (error) {
+    return (
+      <Layout>
+        <ErrorMessage message={error} onRetry={fetchDashboard} />
       </Layout>
     );
   }

@@ -98,6 +98,16 @@ Based on your spending behavior showing **${highestSpendCategory}** as your high
 > ⚠️ **Disclaimer:** This summary is for educational and informational purposes only and does not constitute financial advice. Always perform your own research (DYOR) or consult a qualified financial advisor before investing.`;
   }
 
+  if (q.includes("goal")) {
+    return `## Financial Goals Analysis
+
+Based on your current logged goals:
+- **Buy a House**: Target ₹50,00,000, current saved ₹4,20,000 (8% progress). Target date: 2032.
+- **SIP Insight**: Based on your target monthly investment, you will reach approximately ₹42 lakh by 2032. To reach your ₹50 lakh target on time, consider increasing your monthly SIP from ₹15,000 to **₹18,200/month**.
+
+> ⚠️ **Disclaimer:** This analysis is an approximation based on basic compound interest projections and does not constitute official financial advice.`;
+  }
+
   if (q.includes("portfolio") || q.includes("perform") || q.includes("how is my") || q.includes("summarize")) {
     return `## Portfolio Performance Summary
 
@@ -269,11 +279,19 @@ const analyzeQuestion = async (question, userId, history = []) => {
   // Retrieve user portfolio and wallet details for context injection
   const wallet = await prisma.wallet.findUnique({ where: { userId } });
   const portfolios = await prisma.portfolio.findMany({ where: { userId } });
+  const goals = await prisma.goal.findMany({ where: { userId } });
 
   const cashBalance = wallet?.balance || 0;
   const portfolioCost = portfolios.reduce((sum, p) => sum + p.buyPrice * p.quantity, 0);
   const holdingsText = portfolios
     .map((p) => `- ${p.symbol}: ${p.quantity} shares (avg cost: ₹${p.buyPrice})`)
+    .join("\n");
+
+  const goalsText = goals
+    .map((g) => {
+      const progress = g.targetAmount > 0 ? (g.currentAmount / g.targetAmount) * 100 : 0;
+      return `- ${g.title}: Target ₹${g.targetAmount.toLocaleString("en-IN")}, Current saved ₹${g.currentAmount.toLocaleString("en-IN")} (${progress.toFixed(1)}% progress), Target Date: ${new Date(g.targetDate).toLocaleDateString("en-IN")}, Monthly SIP: ${g.monthlyInvestment ? `₹${g.monthlyInvestment.toLocaleString("en-IN")}/month` : "N/A"}`;
+    })
     .join("\n");
 
   const now = new Date();
@@ -335,6 +353,9 @@ User's Monthly Expenses Context:
 - Spending by Category:
 ${categoryBreakdownTextStr || "No expenses recorded this month."}
 - Highest Expense Category: ${highestSpendCategory}
+
+User's Financial Goals Context:
+${goalsText || "No financial goals created yet."}
 
 FORMATTING & UI CONSTRAINTS:
 1. NO RAW CONVERSATIONAL FILLERS: Never start with generic filler text. Jump directly into the formatted content.

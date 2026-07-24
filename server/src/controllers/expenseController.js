@@ -20,6 +20,31 @@ const addExpense = async (req, res) => {
 
     const expense = await expenseService.createExpense(req.user.id, req.body);
 
+    try {
+      const { createNotification } = require("../services/notificationService");
+      await createNotification({
+        userId: req.user.id,
+        title: "Expense Added",
+        message: `Logged ₹${amount} spent on ${category} (${title}).`,
+        type: "EXPENSE"
+      });
+
+      if (category === "Food") {
+        const analytics = await expenseService.getExpenseAnalytics(req.user.id);
+        const foodBreakdown = analytics.categoryBreakdown.find((cb) => cb.category === "Food");
+        if (foodBreakdown && foodBreakdown.amount > 5000) {
+          await createNotification({
+            userId: req.user.id,
+            title: "Expense Alert",
+            message: `Food expenses crossed ₹5000 (Current total: ₹${foodBreakdown.amount}).`,
+            type: "EXPENSE"
+          });
+        }
+      }
+    } catch (e) {
+      console.error("Expense notification error:", e);
+    }
+
     return res.status(201).json({
       success: true,
       message: "Expense added successfully",
@@ -108,12 +133,15 @@ const getExpenseAnalytics = async (req, res) => {
       analytics: {
         totalExpenses: serviceAnalytics.totalExpenses,
         monthlyExpenses: serviceAnalytics.monthlyExpenses,
+        lastMonthExpenses: serviceAnalytics.lastMonthExpenses,
+        differencePercent: serviceAnalytics.differencePercent,
         averageExpense: serviceAnalytics.averageExpense,
         highestCategory: serviceAnalytics.highestCategory,
         highestCategoryAmount: serviceAnalytics.highestCategoryAmount,
         expenseCount: serviceAnalytics.expenseCount,
         categoryBreakdown: serviceAnalytics.categoryBreakdown,
-        expenseTrend: serviceAnalytics.expenseTrend
+        expenseTrend: serviceAnalytics.expenseTrend,
+        largestExpenses: serviceAnalytics.largestExpenses
       }
     });
   } catch (error) {

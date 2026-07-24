@@ -3,6 +3,8 @@ import toast from "react-hot-toast";
 
 import Layout from "../components/layout/layout";
 import api from "../services/api";
+import EmptyState from "../components/common/EmptyState";
+import SkeletonTable from "../components/loading/SkeletonTable";
 
 function Transactions() {
   const [transactions, setTransactions] = useState([]);
@@ -45,118 +47,75 @@ function Transactions() {
 
 
       {/* Content */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
-
-        {loading ? (
-
-          <p>Loading transactions...</p>
-
-        ) : transactions.length === 0 ? (
-
-          <p className="text-slate-500">
-            No transactions found.
-          </p>
-
-        ) : (
-
+      {loading ? (
+        <SkeletonTable />
+      ) : transactions.length === 0 ? (
+        <EmptyState
+          icon="🧾"
+          title="No Transactions"
+          description="Your buy and sell history will appear here."
+          buttonText="Explore Market"
+          buttonLink="/market"
+        />
+      ) : (
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-100">
           <div className="overflow-x-auto">
-
             <table className="w-full text-left">
-
               <thead>
-                <tr className="border-b border-slate-200">
-
-                  <th className="py-3 text-sm text-slate-500">
-                    Date
-                  </th>
-
-                  <th className="py-3 text-sm text-slate-500">
-                    Symbol
-                  </th>
-
-                  <th className="py-3 text-sm text-slate-500">
-                    Type
-                  </th>
-
-                  <th className="py-3 text-sm text-slate-500">
-                    Quantity
-                  </th>
-
-                  <th className="py-3 text-sm text-slate-500">
-                    Price
-                  </th>
-
-                  <th className="py-3 text-sm text-slate-500">
-                    Total
-                  </th>
-
+                <tr className="border-b border-slate-100">
+                  <th className="py-3 text-sm text-slate-500 font-bold">Date</th>
+                  <th className="py-3 text-sm text-slate-500 font-bold">Symbol</th>
+                  <th className="py-3 text-sm text-slate-500 font-bold">Type</th>
+                  <th className="py-3 text-sm text-slate-500 font-bold">Quantity</th>
+                  <th className="py-3 text-sm text-slate-500 font-bold">Price</th>
+                  <th className="py-3 text-sm text-slate-500 font-bold">Total</th>
                 </tr>
               </thead>
-
-
               <tbody>
-
                 {transactions.map((transaction) => (
-
                   <tr
                     key={transaction.id}
-                    className="border-b border-slate-100 hover:bg-slate-50"
+                    className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50"
                   >
-
-                    <td className="py-4 text-sm text-slate-600">
-                      {new Date(
-                        transaction.createdAt
-                      ).toLocaleDateString("en-IN")}
+                    <td className="py-4 text-xs font-bold text-slate-650">
+                      {new Date(transaction.createdAt).toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit"
+                      })}
                     </td>
-
-
-                    <td className="py-4 font-semibold text-slate-800">
+                    <td className="py-4 text-xs font-black text-slate-800 uppercase">
                       {transaction.symbol}
                     </td>
-
-
-                    <td className="py-4">
-
+                    <td className="py-4 text-xs">
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
                           transaction.type === "BUY"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-red-100 text-red-700"
+                            ? "bg-blue-50 text-blue-600"
+                            : "bg-green-50 text-green-600"
                         }`}
                       >
                         {transaction.type}
                       </span>
-
                     </td>
-
-
-                    <td className="py-4 text-slate-600">
+                    <td className="py-4 text-xs font-bold text-slate-700">
                       {transaction.quantity}
                     </td>
-
-
-                    <td className="py-4 text-slate-600">
-                      ₹{transaction.price}
+                    <td className="py-4 text-xs font-bold text-slate-700">
+                      ₹{transaction.price.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                     </td>
-
-
-                    <td className="py-4 font-semibold text-slate-800">
-                      ₹{transaction.total}
+                    <td className="py-4 text-xs font-extrabold text-slate-800">
+                      ₹{transaction.total.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                     </td>
-
                   </tr>
-
                 ))}
-
               </tbody>
-
             </table>
-
           </div>
-
-        )}
-
-      </div>
+        </div>
+      )}
 
     </Layout>
   );

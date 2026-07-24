@@ -110,6 +110,23 @@ const getExpenseAnalytics = async (userId) => {
     })
     .reduce((sum, expense) => sum + expense.amount, 0);
 
+  const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+
+  const lastMonthExpenses = expenses
+    .filter((expense) => {
+      const date = new Date(expense.expenseDate);
+      return date >= prevMonthStart && date <= prevMonthEnd;
+    })
+    .reduce((sum, expense) => sum + expense.amount, 0);
+
+  let differencePercent = 0;
+  if (lastMonthExpenses > 0) {
+    differencePercent = Math.round(((monthlyExpenses - lastMonthExpenses) / lastMonthExpenses) * 100);
+  } else if (monthlyExpenses > 0) {
+    differencePercent = 100;
+  }
+
   const averageExpense = expenses.length === 0 ? 0 : totalExpenses / expenses.length;
 
   const categories = {};
@@ -146,15 +163,31 @@ const getExpenseAnalytics = async (userId) => {
     }))
     .sort((a, b) => new Date(a.date) - new Date(b.date));
 
+  const largestExpenses = [...expenses]
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 5)
+    .map((exp) => ({
+      id: exp.id,
+      title: exp.title,
+      amount: parseFloat(exp.amount.toFixed(2)),
+      category: exp.category,
+      paymentMethod: exp.paymentMethod,
+      notes: exp.notes,
+      expenseDate: exp.expenseDate
+    }));
+
   return {
     totalExpenses: parseFloat(totalExpenses.toFixed(2)),
     monthlyExpenses: parseFloat(monthlyExpenses.toFixed(2)),
+    lastMonthExpenses: parseFloat(lastMonthExpenses.toFixed(2)),
+    differencePercent,
     averageExpense: parseFloat(averageExpense.toFixed(2)),
     highestCategory,
     highestCategoryAmount: parseFloat(highestCategoryAmount.toFixed(2)),
     expenseCount: expenses.length,
     categoryBreakdown,
-    expenseTrend
+    expenseTrend,
+    largestExpenses
   };
 };
 

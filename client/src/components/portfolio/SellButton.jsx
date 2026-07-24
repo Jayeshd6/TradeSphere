@@ -1,13 +1,15 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 import api from "../../services/api";
+import ConfirmModal from "../common/ConfirmModal";
 
 function SellButton({ portfolio, onSuccess }) {
     const [open, setOpen] = useState(false);
     const [quantity, setQuantity] = useState("");
     const [loading, setLoading] = useState(false);
+    const [showConfirm, setShowConfirm] = useState(false);
 
-    const handleSell = async (e) => {
+    const handleFormSubmit = (e) => {
         e.preventDefault();
 
         if (!quantity || Number(quantity) <= 0) {
@@ -18,6 +20,10 @@ function SellButton({ portfolio, onSuccess }) {
             return toast.error("Quantity exceeds available shares");
         }
 
+        setShowConfirm(true);
+    };
+
+    const executeSell = async () => {
         try {
             setLoading(true);
 
@@ -28,6 +34,7 @@ function SellButton({ portfolio, onSuccess }) {
 
             toast.success("Stock sold successfully");
 
+            setShowConfirm(false);
             setOpen(false);
             setQuantity("");
 
@@ -66,7 +73,7 @@ function SellButton({ portfolio, onSuccess }) {
                         </h2>
 
                         <form
-                            onSubmit={handleSell}
+                            onSubmit={handleFormSubmit}
                             className="space-y-5"
                         >
 
@@ -164,6 +171,17 @@ function SellButton({ portfolio, onSuccess }) {
 
                 </div>
             )}
+
+            <ConfirmModal
+                isOpen={showConfirm}
+                title="Sell Stock"
+                message={`Are you sure you want to sell ${quantity} shares of ${portfolio.symbol}?`}
+                confirmText="Sell"
+                confirmButtonColor="bg-orange-500 hover:bg-orange-600 shadow-orange-500/10"
+                onConfirm={executeSell}
+                onCancel={() => setShowConfirm(false)}
+                icon="📈"
+            />
         </>
     );
 }

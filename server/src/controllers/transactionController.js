@@ -1,6 +1,7 @@
 const prisma = require("../utils/prisma");
 const { getQuote } = require("../services/stockService");
 const { savePortfolioSnapshot } = require("../services/snapshotService");
+const { createNotification } = require("../services/notificationService");
 
 const getTransactions = async (req, res) => {
   try {
@@ -181,6 +182,17 @@ const buyStock = async (req, res) => {
     // 10. Send response
     await savePortfolioSnapshot(req.user.id);
 
+    try {
+      await createNotification({
+        userId: req.user.id,
+        title: "Stock Purchased",
+        message: `Bought ${quantity} ${symbol.toUpperCase()} shares.`,
+        type: "BUY"
+      });
+    } catch (e) {
+      console.error("Buy Stock notification error:", e);
+    }
+
     return res.status(201).json({
       success: true,
       message: "Stock bought successfully",
@@ -305,6 +317,17 @@ const sellStock = async (req, res) => {
     });
 
     await savePortfolioSnapshot(req.user.id);
+
+    try {
+      await createNotification({
+        userId: req.user.id,
+        title: "Stock Sold",
+        message: `Sold ${quantity} ${symbol.toUpperCase()} shares.`,
+        type: "SELL"
+      });
+    } catch (e) {
+      console.error("Sell Stock notification error:", e);
+    }
 
     return res.status(201).json({
       success: true,

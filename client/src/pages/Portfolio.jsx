@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import toast from "react-hot-toast";
 
 import Layout from "../components/layout/layout";
@@ -8,16 +8,21 @@ import PortfolioPieChart from "../components/portfolio/PortfolioPieChart";
 import PortfolioPerformanceChart from "../components/portfolio/PortfolioPerformanceChart";
 import PortfolioInsights from "../components/portfolio/PortfolioInsights";
 import api from "../services/api";
+import SkeletonDashboard from "../components/loading/SkeletonDashboard";
+import EmptyState from "../components/common/EmptyState";
+import ErrorMessage from "../components/common/ErrorMessage";
 
 
 function Portfolio() {
     const [portfolios, setPortfolios] = useState([]);
     const [balance, setBalance] = useState(0);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
 
-    const fetchPortfolio = async () => {
+    const fetchPortfolio = useCallback(async () => {
         try {
             setLoading(true);
+            setError("");
 
             const [portfolioRes, balanceRes] = await Promise.all([
                 api.get("/portfolio/live"),
@@ -27,40 +32,79 @@ function Portfolio() {
             setPortfolios(portfolioRes.data.portfolio || []);
             setBalance(balanceRes.data.balance || 0);
 
-        } catch (error) {
-            toast.error(
-                error.response?.data?.message ||
+        } catch (err) {
+            setError(
+                err.response?.data?.message ||
                 "Failed to fetch portfolio"
             );
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         fetchPortfolio();
-    }, []);
+    }, [fetchPortfolio]);
 
     // Summary Cards
-    const totalInvested = portfolios.reduce(
-        (total, stock) => total + stock.invested,
-        0
-    );
+    const totalInvested = useMemo(() => {
+        return portfolios.reduce(
+            (total, stock) => total + stock.invested,
+            0
+        );
+    }, [portfolios]);
 
-    const portfolioValue = portfolios.reduce(
-        (total, stock) => total + stock.currentValue,
-        0
-    );
+    const portfolioValue = useMemo(() => {
+        return portfolios.reduce(
+            (total, stock) => total + stock.currentValue,
+            0
+        );
+    }, [portfolios]);
 
-    const totalProfit = portfolios.reduce(
-        (total, stock) => total + stock.profit,
-        0
-    );
+    const totalProfit = useMemo(() => {
+        return portfolios.reduce(
+            (total, stock) => total + stock.profit,
+            0
+        );
+    }, [portfolios]);
 
-    const totalProfitPercent =
-        totalInvested === 0
+    const totalProfitPercent = useMemo(() => {
+        return totalInvested === 0
             ? 0
             : (totalProfit / totalInvested) * 100;
+    }, [totalInvested, totalProfit]);
+
+    if (loading) {
+        return (
+            <Layout>
+                <div className="mb-8">
+                    <h1 className="text-3xl font-bold text-slate-800">
+                        My Portfolio
+                    </h1>
+                    <p className="text-slate-500 mt-2">
+                        Track your investments in real time
+                    </p>
+                </div>
+                <SkeletonDashboard />
+            </Layout>
+        );
+    }
+
+    if (error) {
+        return (
+            <Layout>
+                <div className="mb-8">
+                    <h1 className="text-3xl font-bold text-slate-800">
+                        My Portfolio
+                    </h1>
+                    <p className="text-slate-500 mt-2">
+                        Track your investments in real time
+                    </p>
+                </div>
+                <ErrorMessage message={error} onRetry={fetchPortfolio} />
+            </Layout>
+        );
+    }
 
     return (
         <Layout>
@@ -154,24 +198,14 @@ function Portfolio() {
 
             {/* Portfolio List */}
 
-            {loading ? (
-
-                <p>Loading portfolio...</p>
-
-            ) : portfolios.length === 0 ? (
-
-                <div className="bg-white rounded-xl shadow-sm p-10 text-center">
-
-                    <h2 className="text-xl font-semibold text-slate-700">
-                        No Investments Found
-                    </h2>
-
-                    <p className="text-slate-500 mt-2">
-                        Buy your first stock to start building your portfolio.
-                    </p>
-
-                </div>
-
+            {portfolios.length === 0 ? (
+                <EmptyState
+                    icon="📈"
+                    title="No Investments Yet"
+                    description="Start building your portfolio by purchasing your first stock."
+                    buttonText="Buy Your First Stock"
+                    buttonLink="/market"
+                />
             ) : (
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">

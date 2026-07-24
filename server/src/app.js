@@ -10,6 +10,9 @@ const watchlistRoutes = require("./routes/watchlistRoutes");
 const aiRoutes = require("./routes/aiRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const expenseRoutes = require("./routes/expenseRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
+const goalRoutes = require("./routes/goalRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 
 
 const app = express();
@@ -27,6 +30,9 @@ app.use("/api/watchlist", watchlistRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/expenses", expenseRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/goals", goalRoutes);
+app.use("/api/admin", adminRoutes);
 
 
 module.exports = app;
