@@ -1,154 +1,140 @@
-const CATEGORIES = [
-  "Food",
-  "Transport",
-  "Rent",
-  "Shopping",
-  "Entertainment",
-  "Healthcare",
-  "Education",
-  "Utilities",
-  "Bills",
-  "Others"
-];
+import { useState } from "react";
+import toast from "react-hot-toast";
+import api from "../../services/api";
 
-const PAYMENT_METHODS = ["UPI", "Cash", "Card", "Net Banking"];
+function AddExpense({ onSuccess }) {
+  const [formData, setFormData] = useState({
+    title: "",
+    amount: "",
+    category: "",
+    paymentMethod: "",
+    notes: "",
+    expenseDate: new Date().toISOString().split("T")[0],
+  });
 
-const CATEGORY_ICONS = {
-  "Food": "🍔",
-  "Transport": "🚕",
-  "Rent": "🏠",
-  "Shopping": "🛒",
-  "Entertainment": "🎬",
-  "Healthcare": "💊",
-  "Education": "📚",
-  "Utilities": "💡",
-  "Bills": "📱",
-  "Others": "📦"
-};
+  const [loading, setLoading] = useState(false);
 
-function AddExpense({ isOpen, onClose, onSubmit, form, setForm, editingExpense }) {
-  if (!isOpen) return null;
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      await api.post("/expenses", formData);
+      toast.success("Expense added successfully");
+      setFormData({
+        title: "",
+        amount: "",
+        category: "",
+        paymentMethod: "",
+        notes: "",
+        expenseDate: new Date().toISOString().split("T")[0],
+      });
+      onSuccess();
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message ||
+        "Failed to add expense"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
-        <div className="bg-slate-50 border-b border-slate-100 px-6 py-4">
-          <h2 className="text-lg font-black text-slate-800">
-            {editingExpense ? "✏️ Edit Expense" : "💸 Add Expense"}
-          </h2>
-        </div>
-        <form onSubmit={onSubmit} className="p-6 space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-              Title *
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="e.g. Netflix"
-              value={form.title}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
-              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-green-500 font-semibold"
-            />
-          </div>
+    <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-100">
+      <h2 className="text-xl font-bold mb-6 text-slate-800">
+        Add Expense
+      </h2>
+      <form
+        onSubmit={handleSubmit}
+        className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-semibold"
+      >
+        <input
+          type="text"
+          name="title"
+          placeholder="Expense Title"
+          value={formData.title}
+          onChange={handleChange}
+          className="border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-1 focus:ring-green-500 font-semibold"
+          required
+        />
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                Amount (₹) *
-              </label>
-              <input
-                type="number"
-                required
-                min="1"
-                step="0.01"
-                placeholder="499"
-                value={form.amount}
-                onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-green-500 font-semibold"
-              />
-            </div>
+        <input
+          type="number"
+          name="amount"
+          placeholder="Amount"
+          value={formData.amount}
+          onChange={handleChange}
+          className="border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-1 focus:ring-green-500 font-semibold"
+          required
+        />
 
-            <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                Category *
-              </label>
-              <select
-                value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-green-500 font-semibold text-slate-650"
-              >
-                {CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {CATEGORY_ICONS[cat]} {cat}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+        <select
+          name="category"
+          value={formData.category}
+          onChange={handleChange}
+          className="border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-1 focus:ring-green-500 font-semibold text-slate-650"
+          required
+        >
+          <option value="">Select Category</option>
+          <option>Food</option>
+          <option>Transport</option>
+          <option>Shopping</option>
+          <option>Entertainment</option>
+          <option>Healthcare</option>
+          <option>Education</option>
+          <option>Utilities</option>
+          <option>Rent</option>
+          <option>Investment</option>
+          <option>Others</option>
+        </select>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                Date *
-              </label>
-              <input
-                type="date"
-                required
-                value={form.expenseDate}
-                onChange={(e) => setForm({ ...form, expenseDate: e.target.value })}
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-green-500 font-semibold text-slate-650"
-              />
-            </div>
+        <select
+          name="paymentMethod"
+          value={formData.paymentMethod}
+          onChange={handleChange}
+          className="border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-1 focus:ring-green-500 font-semibold text-slate-650"
+        >
+          <option value="">Payment Method</option>
+          <option>Cash</option>
+          <option>UPI</option>
+          <option>Credit Card</option>
+          <option>Debit Card</option>
+          <option>Net Banking</option>
+        </select>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                Payment Method
-              </label>
-              <select
-                value={form.paymentMethod}
-                onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-green-500 font-semibold text-slate-650"
-              >
-                {PAYMENT_METHODS.map((method) => (
-                  <option key={method} value={method}>
-                    {method}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+        <input
+          type="date"
+          name="expenseDate"
+          value={formData.expenseDate}
+          onChange={handleChange}
+          className="border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-1 focus:ring-green-500 font-semibold text-slate-650"
+        />
 
-          <div>
-            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-              Notes
-            </label>
-            <textarea
-              placeholder="Monthly Subscription details..."
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              rows="3"
-              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-green-500 font-semibold"
-            />
-          </div>
+        <textarea
+          name="notes"
+          placeholder="Notes"
+          value={formData.notes}
+          onChange={handleChange}
+          className="border border-slate-200 rounded-xl p-3 md:col-span-2 focus:outline-none focus:ring-1 focus:ring-green-500 font-semibold"
+          rows="3"
+        />
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-500 font-bold rounded-xl text-xs transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl text-xs shadow-lg shadow-green-600/20 transition-all"
-            >
-              {editingExpense ? "Save Changes" : "Add Expense"}
-            </button>
-          </div>
-        </form>
-      </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="bg-red-600 hover:bg-red-700 disabled:bg-slate-400 text-white rounded-xl py-3 md:col-span-2 font-bold transition-colors shadow-lg shadow-red-600/10"
+        >
+          {loading ? "Adding..." : "Add Expense"}
+        </button>
+      </form>
     </div>
   );
 }

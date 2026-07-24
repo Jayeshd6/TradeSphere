@@ -1,4 +1,5 @@
-import { FaEdit, FaTrash } from "react-icons/fa";
+import { FaEdit } from "react-icons/fa";
+import DeleteExpenseButton from "./DeleteExpenseButton";
 
 const CATEGORY_COLORS = {
   "Food": "#10B981",         // Emerald
@@ -60,7 +61,7 @@ function ExpenseCard({ expense, onEdit, onDelete }) {
       <td className="px-6 py-4 text-slate-400 font-medium max-w-[200px] truncate">
         {expense.notes || "—"}
       </td>
-      <td className="px-6 py-4 text-right flex justify-end gap-3">
+      <td className="px-6 py-4 text-right flex justify-end items-center gap-3">
         <button
           onClick={() => onEdit(expense)}
           className="text-slate-400 hover:text-slate-600 p-1 transition-colors"
@@ -68,13 +69,10 @@ function ExpenseCard({ expense, onEdit, onDelete }) {
         >
           <FaEdit className="text-sm" />
         </button>
-        <button
-          onClick={() => onDelete(expense.id)}
-          className="text-red-400 hover:text-red-600 p-1 transition-colors"
-          title="Delete Expense"
-        >
-          <FaTrash className="text-sm" />
-        </button>
+        <DeleteExpenseButton
+          expenseId={expense.id}
+          onSuccess={onDelete}
+        />
       </td>
     </tr>
   );
